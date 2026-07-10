@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProductInput } from "@/lib/firestore";
 import { ALL_STATUSES, STATUS_META, ProductStatus } from "@/types/product";
+import ImageUpload from "./ImageUpload";
 
 interface Props {
   initial?: Partial<ProductInput>;
@@ -21,6 +22,7 @@ function tagsFromString(s: string): string[] {
 export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState("");
 
   const [name, setName] = useState(initial.name ?? "");
@@ -147,8 +149,14 @@ export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Pro
         <Field label="📖 Learn More URL">
           <input type="url" value={learnMoreUrl} onChange={(e) => setLearnMoreUrl(e.target.value)} placeholder="https://" className={input} />
         </Field>
-        <Field label="🖼 Image URL">
-          <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://" className={input} />
+        <Field label="🖼 Product Image" hint="JPG · PNG · WebP · max 5 MB — hover the preview to replace">
+          <ImageUpload
+            currentUrl={imageUrl}
+            slug={slug}
+            onUploadStart={() => setImageUploading(true)}
+            onUploadEnd={() => setImageUploading(false)}
+            onUploadComplete={(url) => setImageUrl(url)}
+          />
         </Field>
       </section>
 
@@ -169,10 +177,10 @@ export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Pro
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || imageUploading}
           className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white text-sm font-medium transition-colors"
         >
-          {saving ? "Saving…" : submitLabel}
+          {imageUploading ? "Waiting for image…" : saving ? "Saving…" : submitLabel}
         </button>
         <button
           type="button"
