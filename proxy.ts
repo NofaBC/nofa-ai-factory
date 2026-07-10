@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Simple token-based auth: Firebase sets a cookie named __session when signed in.
 // For deeper server-side verification you'd validate the ID token with firebase-admin,
 // but for a personal admin dashboard this cookie presence check is sufficient.
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (!pathname.startsWith("/admin")) return NextResponse.next();

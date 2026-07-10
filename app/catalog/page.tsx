@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Product, ProductStatus, STATUS_META, ALL_STATUSES } from "@/types/product";
 import { getPublishedProducts } from "@/lib/firestore";
@@ -13,7 +13,27 @@ function unique(arr: string[][]): string[] {
   return [...new Set(arr.flat())].sort();
 }
 
+// useSearchParams() must live inside a Suspense boundary in Next.js 16
 export default function CatalogPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="h-8 w-48 rounded-lg bg-white/5 animate-pulse mb-10" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-80 rounded-2xl bg-white/5 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </div>
+    }>
+      <CatalogContent />
+    </Suspense>
+  );
+}
+
+function CatalogContent() {
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
