@@ -12,12 +12,22 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const ADMIN_EMAIL = "farhad@nofabusinessconsulting.com";
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (email.trim().toLowerCase() !== ADMIN_EMAIL) {
+      setError("Access denied.");
+      return;
+    }
+
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // Set a cookie the proxy can detect (Firebase does NOT auto-set __session on Vercel)
+      document.cookie = "admin_auth=1; path=/; SameSite=Strict; Secure; max-age=86400";
       router.push("/admin/products");
     } catch {
       setError("Invalid email or password.");

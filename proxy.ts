@@ -9,8 +9,8 @@ export function proxy(req: NextRequest) {
   if (!pathname.startsWith("/admin")) return NextResponse.next();
   if (pathname === "/admin/login") return NextResponse.next();
 
-  // Check for Firebase auth cookie
-  const session = req.cookies.get("__session")?.value;
+  // Check for admin session cookie (set by login page after Firebase Auth succeeds)
+  const session = req.cookies.get("admin_auth")?.value;
   if (!session) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/admin/login";

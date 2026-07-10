@@ -61,6 +61,8 @@ export default function AdminProductsPage() {
 
   async function handleSignOut() {
     await signOut(auth);
+    // Clear the session cookie set at login
+    document.cookie = "admin_auth=; max-age=0; path=/";
     router.push("/admin/login");
   }
 
