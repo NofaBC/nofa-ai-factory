@@ -78,8 +78,9 @@ export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Pro
         order,
       });
       router.push("/admin/products");
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`Save failed: ${msg}`);
     } finally {
       setSaving(false);
     }
