@@ -8,6 +8,7 @@ import {
   deleteDoc,
   query,
   where,
+  orderBy,
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
@@ -59,29 +60,27 @@ function toProduct(id: string, data: Record<string, unknown>): Product {
   };
 }
 
-/** All published products (client-side sorted by order) */
+/** All published products, sorted by order (server-side) */
 export async function getPublishedProducts(): Promise<Product[]> {
   const q = query(
     collection(db, COLLECTION),
-    where("published", "==", true)
+    where("published", "==", true),
+    orderBy("order", "asc")
   );
   const snap = await getDocs(q);
-  return snap.docs
-    .map((d) => toProduct(d.id, d.data()))
-    .sort((a, b) => a.order - b.order);
+  return snap.docs.map((d) => toProduct(d.id, d.data()));
 }
 
-/** Featured published products only (client-side sorted by order) */
+/** Featured published products, sorted by order (server-side) */
 export async function getFeaturedProducts(): Promise<Product[]> {
   const q = query(
     collection(db, COLLECTION),
     where("published", "==", true),
-    where("featured", "==", true)
+    where("featured", "==", true),
+    orderBy("order", "asc")
   );
   const snap = await getDocs(q);
-  return snap.docs
-    .map((d) => toProduct(d.id, d.data()))
-    .sort((a, b) => a.order - b.order);
+  return snap.docs.map((d) => toProduct(d.id, d.data()));
 }
 
 /** Single product by slug */
@@ -93,12 +92,11 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   return toProduct(d.id, d.data());
 }
 
-/** All products (admin view, including unpublished, client-side sorted) */
+/** All products (admin view, including unpublished, sorted by order) */
 export async function getAllProducts(): Promise<Product[]> {
-  const snap = await getDocs(collection(db, COLLECTION));
-  return snap.docs
-    .map((d) => toProduct(d.id, d.data()))
-    .sort((a, b) => a.order - b.order);
+  const q = query(collection(db, COLLECTION), orderBy("order", "asc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => toProduct(d.id, d.data()));
 }
 
 /** Single product by ID (admin) */
