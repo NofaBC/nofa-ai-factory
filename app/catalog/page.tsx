@@ -51,12 +51,8 @@ function CatalogContent() {
 
   useEffect(() => {
     getPublishedProducts()
-      .then((data) => {
-        console.log("[Catalog] fetched product count:", data.length);
-        console.log("[Catalog] fetched products:", JSON.parse(JSON.stringify(data)));
-        setProducts(data);
-      })
-      .catch((err) => console.error("[Catalog] fetch error:", err))
+      .then(setProducts)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -79,12 +75,6 @@ function CatalogContent() {
   }
 
   const filtered = useMemo(() => {
-    console.log("[Catalog] computing filtered — products:", products.length,
-      "| search:", JSON.stringify(search),
-      "| industry:", selectedIndustry,
-      "| ai:", selectedAI,
-      "| status:", selectedStatus);
-
     const result = products.filter((p) => {
       const q = search.toLowerCase().trim();
       const matchSearch =
@@ -100,7 +90,6 @@ function CatalogContent() {
       return matchSearch && matchIndustry && matchAI && matchStatus;
     });
 
-    console.log("[Catalog] filtered result count:", result.length);
     return result;
   }, [products, search, selectedIndustry, selectedAI, selectedStatus]);
 
