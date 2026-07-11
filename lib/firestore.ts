@@ -8,7 +8,6 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
@@ -45,27 +44,29 @@ function toProduct(id: string, data: Record<string, unknown>): Product {
   };
 }
 
-/** All published products, sorted by order */
+/** All published products (client-side sorted by order) */
 export async function getPublishedProducts(): Promise<Product[]> {
   const q = query(
     collection(db, COLLECTION),
-    where("published", "==", true),
-    orderBy("order", "asc")
+    where("published", "==", true)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => toProduct(d.id, d.data()));
+  return snap.docs
+    .map((d) => toProduct(d.id, d.data()))
+    .sort((a, b) => a.order - b.order);
 }
 
-/** Featured published products only */
+/** Featured published products only (client-side sorted by order) */
 export async function getFeaturedProducts(): Promise<Product[]> {
   const q = query(
     collection(db, COLLECTION),
     where("published", "==", true),
-    where("featured", "==", true),
-    orderBy("order", "asc")
+    where("featured", "==", true)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => toProduct(d.id, d.data()));
+  return snap.docs
+    .map((d) => toProduct(d.id, d.data()))
+    .sort((a, b) => a.order - b.order);
 }
 
 /** Single product by slug */
@@ -77,11 +78,12 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   return toProduct(d.id, d.data());
 }
 
-/** All products (admin view, including unpublished) */
+/** All products (admin view, including unpublished, client-side sorted) */
 export async function getAllProducts(): Promise<Product[]> {
-  const q = query(collection(db, COLLECTION), orderBy("order", "asc"));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => toProduct(d.id, d.data()));
+  const snap = await getDocs(collection(db, COLLECTION));
+  return snap.docs
+    .map((d) => toProduct(d.id, d.data()))
+    .sort((a, b) => a.order - b.order);
 }
 
 /** Single product by ID (admin) */
