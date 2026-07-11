@@ -19,6 +19,7 @@ const CATEGORIES = [
 
 export default function Home() {
   const [featured, setFeatured] = useState<Product[]>([]);
+  const [latest, setLatest] = useState<Product[]>([]);
   const [stats, setStats] = useState({ total: 0, live: 0, prototypes: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +31,7 @@ export default function Home() {
           getPublishedProducts(),
         ]);
         setFeatured(feat);
+        setLatest(all.slice(0, 6));
         setStats({
           total: all.length,
           live: all.filter((p) => p.status === "live_saas").length,
@@ -45,6 +47,13 @@ export default function Home() {
     }
     load();
   }, []);
+
+  // Show featured if available, otherwise fall back to latest published products
+  const displayProducts = featured.length > 0 ? featured : latest;
+  const sectionLabel = featured.length > 0 ? "Featured Products" : "Latest Products";
+  const sectionSub = featured.length > 0
+    ? "Hand-picked AI solutions ready to explore"
+    : "Our most recently added AI solutions";
 
   return (
     <div className="flex flex-col">
@@ -134,8 +143,8 @@ export default function Home() {
         <div className="mx-auto max-w-7xl">
           <div className="flex items-end justify-between mb-10">
             <div>
-              <h2 className="text-2xl font-bold text-white">Featured Products</h2>
-              <p className="text-sm text-zinc-500 mt-1">Hand-picked AI solutions ready to explore</p>
+              <h2 className="text-2xl font-bold text-white">{sectionLabel}</h2>
+              <p className="text-sm text-zinc-500 mt-1">{sectionSub}</p>
             </div>
             <Link href="/catalog" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
               View all →
@@ -147,45 +156,73 @@ export default function Home() {
                 <div key={i} className="h-80 rounded-2xl bg-white/5 animate-pulse" />
               ))}
             </div>
-          ) : featured.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 p-16 text-center">
-              <p className="text-zinc-600 text-sm">
-                No featured products yet.{" "}
-                <Link href="/admin" className="text-blue-400 hover:underline">Add products via the admin dashboard.</Link>
-              </p>
-            </div>
-          ) : (
+          ) : displayProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featured.map((product) => (
+              {displayProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="px-4 pb-24 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-900/20 to-violet-900/20 p-12 text-center">
-          <h2 className="text-2xl font-bold text-white">Don&apos;t see what you need?</h2>
-          <p className="mt-3 text-zinc-400">
-            New AI products are added continuously. Talk to Judy — our AI assistant — to find the right solution or get a custom build.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <a
-              href="https://usejudy.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 hover:bg-blue-500 px-6 py-3 text-sm font-semibold text-white transition-colors"
-            >
-              💬 Talk to Judy
-            </a>
-            <Link
-              href="/catalog"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 hover:bg-white/5 px-6 py-3 text-sm font-semibold text-white transition-colors"
-            >
-              Browse All Products
-            </Link>
+      {/* ── Have an AI Idea? ── */}
+      <section className="relative px-4 py-24 sm:px-6 lg:px-8 overflow-hidden">
+        {/* Blueprint grid background */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#60a5fa 1px, transparent 1px), linear-gradient(90deg, #60a5fa 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+        {/* Glow */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="h-[400px] w-[600px] rounded-full bg-violet-600/10 blur-[100px]" />
+        </div>
+
+        <div className="relative mx-auto max-w-4xl">
+          <div className="rounded-3xl border border-violet-500/20 bg-gradient-to-br from-violet-950/60 to-blue-950/60 backdrop-blur-sm p-12 sm:p-16 text-center">
+            {/* Badge */}
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-400/10 px-4 py-1.5 text-sm text-violet-300">
+              🏗 Custom AI Development
+            </div>
+
+            <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
+              Have an AI idea?{" "}
+              <span className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">
+                Let&apos;s build it.
+              </span>
+            </h2>
+
+            <p className="mx-auto mt-6 max-w-2xl text-lg text-zinc-400 leading-relaxed">
+              If you have a repetitive task, workflow, business problem, or original AI idea,
+              NOFA AI Factory™ can help turn it into a working prototype or custom AI solution.
+            </p>
+
+            <p className="mx-auto mt-4 max-w-xl text-base text-zinc-500">
+              Explore what we have already built — or bring us the next idea.
+            </p>
+
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <a
+                href="https://nofabusinessconsulting.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 hover:bg-violet-500 px-8 py-3.5 text-base font-semibold text-white transition-colors shadow-lg shadow-violet-600/20"
+              >
+                🚀 Submit Your AI Idea
+              </a>
+              <a
+                href="https://usejudy.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-8 py-3.5 text-base font-semibold text-white transition-colors"
+              >
+                💬 Talk to Judy
+              </a>
+            </div>
           </div>
         </div>
       </section>
