@@ -40,13 +40,16 @@ function CatalogContent() {
   const [search, setSearch] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState<string[]>([]);
   const [selectedAI, setSelectedAI] = useState<string[]>([]);
+  const [selectedBusinessProblem, setSelectedBusinessProblem] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<ProductStatus[]>([]);
   const [page, setPage] = useState(1);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Read URL params and pre-apply filters
   useEffect(() => {
     const industry = searchParams.get("industry");
+    const problem = searchParams.get("businessProblem");
     if (industry) setSelectedIndustry([industry]);
+    if (problem) setSelectedBusinessProblem([problem]);
   }, [searchParams]);
 
   useEffect(() => {
@@ -62,6 +65,10 @@ function CatalogContent() {
   );
   const aiCategories = useMemo(
     () => unique(products.map((p) => p.aiCategory)),
+    [products]
+  );
+  const businessProblems = useMemo(
+    () => unique(products.map((p) => p.businessProblem)),
     [products]
   );
 
@@ -82,16 +89,18 @@ function CatalogContent() {
         p.name.toLowerCase().includes(q) ||
         p.shortDescription.toLowerCase().includes(q) ||
         (Array.isArray(p.categories) && p.categories.some((c) => c.toLowerCase().includes(q))) ||
-        (Array.isArray(p.industry) && p.industry.some((i) => i.toLowerCase().includes(q)));
+        (Array.isArray(p.industry) && p.industry.some((i) => i.toLowerCase().includes(q))) ||
+        (Array.isArray(p.businessProblem) && p.businessProblem.some((b) => b.toLowerCase().includes(q)));
       const matchIndustry = arrayMatch(p.industry, selectedIndustry);
       const matchAI = arrayMatch(p.aiCategory, selectedAI);
+      const matchProblem = arrayMatch(p.businessProblem, selectedBusinessProblem);
       const matchStatus =
         selectedStatus.length === 0 || selectedStatus.includes(p.status);
-      return matchSearch && matchIndustry && matchAI && matchStatus;
+      return matchSearch && matchIndustry && matchAI && matchProblem && matchStatus;
     });
 
     return result;
-  }, [products, search, selectedIndustry, selectedAI, selectedStatus]);
+  }, [products, search, selectedIndustry, selectedAI, selectedBusinessProblem, selectedStatus]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -100,12 +109,14 @@ function CatalogContent() {
     setSearch("");
     setSelectedIndustry([]);
     setSelectedAI([]);
+    setSelectedBusinessProblem([]);
     setSelectedStatus([]);
     setPage(1);
   };
 
   const hasFilters =
-    search || selectedIndustry.length || selectedAI.length || selectedStatus.length;
+    search || selectedIndustry.length || selectedAI.length ||
+    selectedBusinessProblem.length || selectedStatus.length;
 
   return (
     <div className="min-h-screen px-4 py-12 sm:px-6 lg:px-8">
@@ -121,7 +132,7 @@ function CatalogContent() {
         </div>
 
         {/* Search bar */}
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">🔍</span>
           <input
             type="text"
@@ -131,6 +142,40 @@ function CatalogContent() {
             className="w-full rounded-xl border border-white/[0.08] bg-[#111827] pl-11 pr-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition"
           />
         </div>
+
+        {/* Active filter chips */}
+        {hasFilters && (
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <span className="text-xs text-zinc-600 shrink-0">Active:</span>
+            {selectedIndustry.map((s) => (
+              <button key={s} onClick={() => { setSelectedIndustry((v) => v.filter((x) => x !== s)); setPage(1); }}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition">
+                🏢 {s} <span className="opacity-60">×</span>
+              </button>
+            ))}
+            {selectedAI.map((s) => (
+              <button key={s} onClick={() => { setSelectedAI((v) => v.filter((x) => x !== s)); setPage(1); }}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-violet-600/20 border border-violet-500/40 text-violet-300 hover:bg-violet-600/30 transition">
+                🤖 {s} <span className="opacity-60">×</span>
+              </button>
+            ))}
+            {selectedBusinessProblem.map((s) => (
+              <button key={s} onClick={() => { setSelectedBusinessProblem((v) => v.filter((x) => x !== s)); setPage(1); }}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-teal-600/20 border border-teal-500/40 text-teal-300 hover:bg-teal-600/30 transition">
+                📋 {s} <span className="opacity-60">×</span>
+              </button>
+            ))}
+            {selectedStatus.map((s) => (
+              <button key={s} onClick={() => { setSelectedStatus((v) => v.filter((x) => x !== s)); setPage(1); }}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-amber-600/20 border border-amber-500/40 text-amber-300 hover:bg-amber-600/30 transition">
+                {STATUS_META[s].emoji} {STATUS_META[s].label} <span className="opacity-60">×</span>
+              </button>
+            ))}
+            <button onClick={resetFilters} className="text-xs text-zinc-600 hover:text-zinc-400 transition ml-1">
+              Clear all
+            </button>
+          </div>
+        )}
 
         <div className="flex gap-8">
           {/* Sidebar filters — desktop */}
@@ -158,6 +203,12 @@ function CatalogContent() {
               options={aiCategories}
               selected={selectedAI}
               onChange={(v) => { setSelectedAI(v); setPage(1); }}
+            />
+            <CategoryFilter
+              label="Business Problem"
+              options={businessProblems}
+              selected={selectedBusinessProblem}
+              onChange={(v) => { setSelectedBusinessProblem(v); setPage(1); }}
             />
 
             {/* Status filter */}

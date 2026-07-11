@@ -6,20 +6,52 @@ import { Product } from "@/types/product";
 import { getFeaturedProducts, getPublishedProducts } from "@/lib/firestore";
 import ProductCard from "@/components/ProductCard";
 
-const CATEGORIES = [
-  { icon: "🏗️", label: "Operations" },
-  { icon: "📊", label: "Analytics" },
-  { icon: "💬", label: "Customer Service" },
-  { icon: "⚖️", label: "Legal & Compliance" },
-  { icon: "💰", label: "Finance" },
-  { icon: "🏥", label: "Healthcare" },
-  { icon: "🏢", label: "Real Estate" },
-  { icon: "🎓", label: "Education" },
+// Map keywords → emoji for dynamic industry/problem tiles
+const INDUSTRY_ICONS: [string, string][] = [
+  ["finance", "💰"], ["financial", "💰"], ["banking", "🏦"],
+  ["healthcare", "🏥"], ["health", "🏥"], ["medical", "🏥"], ["wellness", "🌿"],
+  ["real estate", "🏢"], ["property", "🏢"], ["construction", "🏗️"],
+  ["logistics", "📦"], ["distribution", "📦"], ["supply", "📦"], ["wholesale", "🚚"],
+  ["human resources", "👥"], ["career", "👥"], ["recruiting", "🎯"], ["employment", "👥"],
+  ["legal", "⚖️"], ["compliance", "⚖️"],
+  ["education", "🎓"], ["learning", "🎓"],
+  ["marketing", "📢"], ["advertising", "📢"],
+  ["e-commerce", "🛒"], ["ecommerce", "🛒"], ["retail", "🛒"],
+  ["consulting", "💼"], ["professional", "💼"],
+  ["small business", "🏪"], ["bakery", "🥐"], ["food", "🍽️"], ["beverage", "🥤"],
+  ["technology", "💻"], ["software", "💻"],
+  ["operations", "⚙️"],
 ];
+
+const PROBLEM_ICONS: [string, string][] = [
+  ["automation", "⚙️"], ["workflow", "⚙️"],
+  ["customer support", "💬"], ["customer service", "💬"],
+  ["analytics", "📊"], ["analysis", "📊"], ["reporting", "📊"],
+  ["planning", "📋"], ["budgeting", "📋"], ["forecasting", "📋"],
+  ["recruitment", "🎯"], ["hiring", "🎯"], ["lead gen", "🎯"],
+  ["compliance", "🔐"], ["risk", "🔐"],
+  ["sales", "📈"], ["revenue", "📈"],
+  ["decision", "💡"],
+  ["tracking", "📍"], ["monitoring", "📍"],
+  ["job search", "🔍"], ["matching", "🔍"],
+  ["debt", "💳"], ["savings", "💳"],
+  ["productivity", "⚡"], ["efficiency", "⚡"],
+  ["interview", "🎤"],
+];
+
+function pickIcon(label: string, map: [string, string][]): string {
+  const lower = label.toLowerCase();
+  for (const [key, icon] of map) {
+    if (lower.includes(key)) return icon;
+  }
+  return "🤖";
+}
 
 export default function Home() {
   const [featured, setFeatured] = useState<Product[]>([]);
   const [latest, setLatest] = useState<Product[]>([]);
+  const [industryTiles, setIndustryTiles] = useState<string[]>([]);
+  const [problemTiles, setProblemTiles] = useState<string[]>([]);
   const [stats, setStats] = useState({ total: 0, live: 0, prototypes: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -39,6 +71,11 @@ export default function Home() {
             (p) => p.status === "live_prototype" || p.status === "prototype_ready"
           ).length,
         });
+        // Derive unique industries and business problems from actual products
+        const uniqueIndustries = [...new Set(all.flatMap((p) => p.industry))].sort();
+        const uniqueProblems = [...new Set(all.flatMap((p) => p.businessProblem))].sort();
+        setIndustryTiles(uniqueIndustries.slice(0, 12));
+        setProblemTiles(uniqueProblems.slice(0, 10));
       } catch {
         // Firebase not yet configured
       } finally {
@@ -117,26 +154,66 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Category Grid ── */}
-      <section className="px-4 py-16 sm:px-6 lg:px-8 border-y border-white/[0.04] bg-white/[0.01]">
-        <div className="mx-auto max-w-7xl">
-          <h2 className="text-center text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-8">
-            Browse by Industry
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-            {CATEGORIES.map(({ icon, label }) => (
-              <Link
-                key={label}
-                href={`/catalog?industry=${encodeURIComponent(label)}`}
-                className="flex flex-col items-center gap-2 rounded-xl border border-white/[0.06] bg-[#111827] hover:bg-[#1c2333] hover:border-blue-500/30 p-4 transition-all group"
-              >
-                <span className="text-2xl group-hover:scale-110 transition-transform">{icon}</span>
-                <span className="text-xs text-zinc-500 group-hover:text-zinc-300 text-center transition-colors">{label}</span>
-              </Link>
-            ))}
+      {/* ── Browse by Industry + Business Function ── */}
+      {!loading && (industryTiles.length > 0 || problemTiles.length > 0) && (
+        <section className="px-4 py-16 sm:px-6 lg:px-8 border-y border-white/[0.04] bg-white/[0.01] space-y-14">
+          <div className="mx-auto max-w-7xl">
+            {/* Industries */}
+            {industryTiles.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-base font-semibold text-white">Browse by Industry</h2>
+                    <p className="text-xs text-zinc-600 mt-0.5">Find AI solutions built for your sector</p>
+                  </div>
+                  <Link href="/catalog" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                    See all →
+                  </Link>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {industryTiles.map((label) => (
+                    <Link
+                      key={label}
+                      href={`/catalog?industry=${encodeURIComponent(label)}`}
+                      className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#111827] hover:bg-[#1c2333] hover:border-blue-500/30 px-4 py-3 transition-all group"
+                    >
+                      <span className="text-xl shrink-0">{pickIcon(label, INDUSTRY_ICONS)}</span>
+                      <span className="text-xs text-zinc-400 group-hover:text-zinc-200 leading-tight transition-colors">{label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Business Functions */}
+            {problemTiles.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-base font-semibold text-white">Browse by Business Problem</h2>
+                    <p className="text-xs text-zinc-600 mt-0.5">Start with the problem you need to solve</p>
+                  </div>
+                  <Link href="/catalog" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                    See all →
+                  </Link>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {problemTiles.map((label) => (
+                    <Link
+                      key={label}
+                      href={`/catalog?businessProblem=${encodeURIComponent(label)}`}
+                      className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#111827] hover:bg-[#1c2333] hover:border-violet-500/30 px-4 py-3 transition-all group"
+                    >
+                      <span className="text-xl shrink-0">{pickIcon(label, PROBLEM_ICONS)}</span>
+                      <span className="text-xs text-zinc-400 group-hover:text-zinc-200 leading-tight transition-colors">{label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Featured Products ── */}
       <section className="px-4 py-20 sm:px-6 lg:px-8">
