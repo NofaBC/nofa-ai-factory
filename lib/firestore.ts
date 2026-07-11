@@ -16,6 +16,21 @@ import { Product, ProductStatus } from "@/types/product";
 
 const COLLECTION = "products";
 
+/**
+ * Normalize a Firestore field that should be a string array.
+ * Handles:
+ *   - actual string[]  (correct)
+ *   - comma-separated string (saved before normalization was in place)
+ *   - null / undefined  → empty array
+ */
+function ensureArray(val: unknown): string[] {
+  if (Array.isArray(val))
+    return (val as unknown[]).map(String).map((s) => s.trim()).filter(Boolean);
+  if (typeof val === "string")
+    return val.split(",").map((s) => s.trim()).filter(Boolean);
+  return [];
+}
+
 function toProduct(id: string, data: Record<string, unknown>): Product {
   const ts = (t: unknown) =>
     t instanceof Timestamp ? t.toDate().toISOString() : new Date().toISOString();
@@ -26,19 +41,19 @@ function toProduct(id: string, data: Record<string, unknown>): Product {
     shortDescription: (data.shortDescription as string) ?? "",
     description: (data.description as string) ?? "",
     status: (data.status as ProductStatus) ?? "concept",
-    categories: (data.categories as string[]) ?? [],
-    industry: (data.industry as string[]) ?? [],
-    aiCategory: (data.aiCategory as string[]) ?? [],
-    businessProblem: (data.businessProblem as string[]) ?? [],
-    tags: (data.tags as string[]) ?? [],
+    categories: ensureArray(data.categories),
+    industry: ensureArray(data.industry),
+    aiCategory: ensureArray(data.aiCategory),
+    businessProblem: ensureArray(data.businessProblem),
+    tags: ensureArray(data.tags),
     prototypeUrl: (data.prototypeUrl as string) ?? "",
     liveSaasUrl: (data.liveSaasUrl as string) ?? "",
     judyUrl: (data.judyUrl as string) ?? "",
     learnMoreUrl: (data.learnMoreUrl as string) ?? "",
     imageUrl: (data.imageUrl as string) ?? "",
-    published: (data.published as boolean) ?? false,
-    featured: (data.featured as boolean) ?? false,
-    order: (data.order as number) ?? 0,
+    published: data.published === true,   // strict boolean, not truthy string
+    featured: data.featured === true,
+    order: typeof data.order === "number" ? data.order : 0,
     createdAt: ts(data.createdAt),
     updatedAt: ts(data.updatedAt),
   };

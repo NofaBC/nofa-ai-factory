@@ -51,8 +51,12 @@ function CatalogContent() {
 
   useEffect(() => {
     getPublishedProducts()
-      .then(setProducts)
-      .catch(() => {})
+      .then((data) => {
+        console.log("[Catalog] fetched product count:", data.length);
+        console.log("[Catalog] fetched products:", JSON.parse(JSON.stringify(data)));
+        setProducts(data);
+      })
+      .catch((err) => console.error("[Catalog] fetch error:", err))
       .finally(() => setLoading(false));
   }, []);
 
@@ -65,25 +69,39 @@ function CatalogContent() {
     [products]
   );
 
+  // Case-insensitive, trimmed array membership check
+  function arrayMatch(productValues: string[], filterValues: string[]): boolean {
+    if (filterValues.length === 0) return true;
+    const norm = (s: string) => s.trim().toLowerCase();
+    return filterValues.some((fv) =>
+      productValues.some((pv) => norm(pv) === norm(fv))
+    );
+  }
+
   const filtered = useMemo(() => {
-    return products.filter((p) => {
-      const q = search.toLowerCase();
+    console.log("[Catalog] computing filtered — products:", products.length,
+      "| search:", JSON.stringify(search),
+      "| industry:", selectedIndustry,
+      "| ai:", selectedAI,
+      "| status:", selectedStatus);
+
+    const result = products.filter((p) => {
+      const q = search.toLowerCase().trim();
       const matchSearch =
         !q ||
         p.name.toLowerCase().includes(q) ||
         p.shortDescription.toLowerCase().includes(q) ||
-        p.categories.some((c) => c.toLowerCase().includes(q)) ||
-        p.industry.some((i) => i.toLowerCase().includes(q));
-      const matchIndustry =
-        selectedIndustry.length === 0 ||
-        selectedIndustry.some((s) => p.industry.includes(s));
-      const matchAI =
-        selectedAI.length === 0 ||
-        selectedAI.some((s) => p.aiCategory.includes(s));
+        (Array.isArray(p.categories) && p.categories.some((c) => c.toLowerCase().includes(q))) ||
+        (Array.isArray(p.industry) && p.industry.some((i) => i.toLowerCase().includes(q)));
+      const matchIndustry = arrayMatch(p.industry, selectedIndustry);
+      const matchAI = arrayMatch(p.aiCategory, selectedAI);
       const matchStatus =
         selectedStatus.length === 0 || selectedStatus.includes(p.status);
       return matchSearch && matchIndustry && matchAI && matchStatus;
     });
+
+    console.log("[Catalog] filtered result count:", result.length);
+    return result;
   }, [products, search, selectedIndustry, selectedAI, selectedStatus]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
