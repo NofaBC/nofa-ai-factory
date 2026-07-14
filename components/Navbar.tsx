@@ -39,6 +39,12 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
+          <a
+            href="mailto:supportdesk@nofabusinessconsulting.com"
+            className="hidden sm:inline-flex px-4 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            Contact
+          </a>
           <Link
             href="/catalog"
             className="ml-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"

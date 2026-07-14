@@ -14,6 +14,12 @@ export default function Footer() {
           </a>
           .
         </p>
+        <a
+          href="mailto:supportdesk@nofabusinessconsulting.com"
+          className="text-zinc-500 hover:text-zinc-300 transition-colors text-sm"
+        >
+          supportdesk@nofabusinessconsulting.com
+        </a>
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <span>© {new Date().getFullYear()} NOFA AI Factory™ — All rights reserved.</span>
           <span className="hidden sm:inline text-zinc-800">·</span>

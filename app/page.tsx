@@ -282,6 +282,16 @@ export default function Home() {
               Explore what we have already built — or bring us the next idea.
             </p>
 
+            <p className="mt-3 text-sm text-zinc-600">
+              Questions?{" "}
+              <a
+                href="mailto:supportdesk@nofabusinessconsulting.com"
+                className="text-zinc-400 hover:text-white underline underline-offset-2 transition-colors"
+              >
+                supportdesk@nofabusinessconsulting.com
+              </a>
+            </p>
+
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
                 href="https://nofabusinessconsulting.com"
