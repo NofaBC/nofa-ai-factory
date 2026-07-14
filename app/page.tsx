@@ -285,7 +285,9 @@ export default function Home() {
             <p className="mt-3 text-sm text-zinc-600">
               Questions?{" "}
               <a
-                href="mailto:supportdesk@nofabusinessconsulting.com"
+                href="https://mail.google.com/mail/?view=cm&fs=1&to=supportdesk@nofabusinessconsulting.com"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-zinc-400 hover:text-white underline underline-offset-2 transition-colors"
               >
                 supportdesk@nofabusinessconsulting.com

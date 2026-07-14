@@ -15,7 +15,9 @@ export default function Footer() {
           .
         </p>
         <a
-          href="mailto:supportdesk@nofabusinessconsulting.com"
+          href="https://mail.google.com/mail/?view=cm&fs=1&to=supportdesk@nofabusinessconsulting.com"
+          target="_blank"
+          rel="noopener noreferrer"
           className="text-zinc-500 hover:text-zinc-300 transition-colors text-sm"
         >
           supportdesk@nofabusinessconsulting.com

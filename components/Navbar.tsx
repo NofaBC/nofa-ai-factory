@@ -40,7 +40,9 @@ export default function Navbar() {
             </Link>
           ))}
           <a
-            href="mailto:supportdesk@nofabusinessconsulting.com"
+            href="https://mail.google.com/mail/?view=cm&fs=1&to=supportdesk@nofabusinessconsulting.com"
+            target="_blank"
+            rel="noopener noreferrer"
             className="hidden sm:inline-flex px-4 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
           >
             Contact
