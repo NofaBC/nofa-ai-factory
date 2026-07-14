@@ -129,7 +129,7 @@ export default function Home() {
               Browse All AI Products →
             </Link>
             <a
-              href="https://usejudy.com"
+              href="https://judyva.vercel.app/?tenant=NOFA-Business-Consulting"
               target="_blank"
               rel="noopener noreferrer"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-8 py-3.5 text-base font-semibold text-white transition-colors"
@@ -292,7 +292,7 @@ export default function Home() {
                 🚀 Submit Your AI Idea
               </a>
               <a
-                href="https://usejudy.com"
+                href="https://judyva.vercel.app/?tenant=NOFA-Business-Consulting"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-8 py-3.5 text-base font-semibold text-white transition-colors"
