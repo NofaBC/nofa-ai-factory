@@ -1,25 +1,21 @@
 import { NextResponse } from "next/server";
 import { fetchPublishedProductsREST } from "@/lib/firestore-rest";
+import { formatProduct } from "@/lib/product-api";
 
-export const dynamic = "force-dynamic";
+const CORS = { "Access-Control-Allow-Origin": "*" };
 
 export async function GET() {
   try {
-    const products = await fetchPublishedProductsREST();
-
+    const raw = await fetchPublishedProductsREST();
+    const products = raw.map(formatProduct);
     return NextResponse.json(
-      { products, count: products.length, updatedAt: new Date().toISOString() },
-      {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
-        },
-      }
+      { products, count: products.length },
+      { headers: CORS }
     );
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to fetch products", detail: String(err) },
-      { status: 500 }
+      { status: 500, headers: CORS }
     );
   }
 }
