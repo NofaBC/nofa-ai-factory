@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  revalidateTag("products");
+  // Next.js 16: revalidateTag requires a second argument.
+  // { expire: 0 } = immediate expiry (Read-Your-Own-Writes),
+  // so the very next API request gets fresh Firestore data.
+  revalidateTag("products", { expire: 0 });
 
   return NextResponse.json({
     revalidated: true,
