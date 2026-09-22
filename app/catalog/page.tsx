@@ -381,6 +381,36 @@ function CatalogContent() {
             )}
           </div>
         </div>
+
+        {/* Partner / Affiliate Program — secondary showroom path */}
+        <section className="mt-14 rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/30 via-[#111827] to-blue-950/20 p-6 sm:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300">
+                🤝 Partner with NOFA
+              </div>
+              <h2 className="mt-4 text-2xl font-bold text-white">
+                Earn by Referring NOFA AI Solutions
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                Know a business that could benefit from one of the AI solutions in our showroom?
+                Ask about the NOFA affiliate and referral program and learn how qualifying referrals
+                can create commission opportunities.
+              </p>
+              <p className="mt-3 text-xs text-zinc-500">
+                This is a separate partner path and does not change the normal product purchase or client onboarding experience.
+              </p>
+            </div>
+            <div className="shrink-0">
+              <a
+                href="mailto:supportdesk@nofabusinessconsulting.com?subject=NOFA%20Affiliate%20Program%20Inquiry"
+                className="inline-flex items-center justify-center rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
+              >
+                Become a NOFA Affiliate →
+              </a>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
