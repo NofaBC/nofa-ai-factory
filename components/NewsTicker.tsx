@@ -4,37 +4,24 @@ import { useEffect, useState } from "react";
 import styles from "./NewsTicker.module.css";
 
 const LINK = "https://nofa-ai-news-flash.vercel.app/";
+const API_URL = "https://nofa-ai-news-flash.vercel.app/api/public/dashboard";
+const REFRESH_MS = 60_000; // match the News Flash site's 60-second poll
 
-const HEADLINES: { text: string; highlight: string }[] = [
-  { text: "Breaking: New AI model surpasses human benchmarks on reasoning tasks", highlight: "Breaking:" },
-  { text: "OpenAI announces next-generation multimodal architecture", highlight: "OpenAI" },
-  { text: "EU AI Act enforcement enters next phase — full compliance required by 2026", highlight: "EU AI Act" },
-  { text: "Google DeepMind unveils breakthrough in protein folding prediction", highlight: "DeepMind" },
-  { text: "AI-powered coding assistants now used by 78% of professional developers", highlight: "78%" },
-  { text: "New study reveals AI can detect early-stage cancer with 99.2% accuracy", highlight: "99.2%" },
-  { text: "NVIDIA stock surges as AI chip demand hits record high", highlight: "NVIDIA" },
-  { text: "Anthropic releases Claude with extended memory and tool use capabilities", highlight: "Anthropic" },
-  { text: "AI ethics board calls for mandatory transparency in training data", highlight: "AI ethics" },
-  { text: "Stay informed — visit NOFA AI News Flash for real-time updates", highlight: "NOFA AI News Flash" },
+// Fallback shown while loading or if the API is unreachable
+const FALLBACK_ITEMS = [
+  "🔵 NOFA AI News Flash — Live AI provider status and developer alerts",
+  "🟢 Visit nofa-ai-news-flash.vercel.app for real-time AI infrastructure updates",
+  "📡 Monitoring OpenAI · Anthropic · Gemini · xAI · Kimi · Z.ai · Qwen",
 ];
-
-function Highlighted({ text, highlight }: { text: string; highlight: string }) {
-  const idx = text.indexOf(highlight);
-  if (idx === -1) return <>{text}</>;
-  return (
-    <>
-      {text.slice(0, idx)}
-      <span className={styles.highlight}>{highlight}</span>
-      {text.slice(idx + highlight.length)}
-    </>
-  );
-}
 
 export default function NewsTicker() {
   const [time, setTime] = useState("");
+  const [tickerItems, setTickerItems] = useState<string[]>(FALLBACK_ITEMS);
+  const [reportCount, setReportCount] = useState<number | null>(null);
 
+  // Live clock
   useEffect(() => {
-    const update = () => {
+    const update = () =>
       setTime(
         new Date().toLocaleTimeString("en-US", {
           hour: "2-digit",
@@ -44,18 +31,46 @@ export default function NewsTicker() {
           timeZoneName: "short",
         } as Intl.DateTimeFormatOptions)
       );
-    };
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, []);
 
-  const items = HEADLINES.map((h, i) => (
+  // Fetch live ticker from News Flash API, refresh every 60 s
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchTicker() {
+      try {
+        const res = await fetch(API_URL, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        // `ticker` is a single string like "🟠 OpenAI: ... • 🟢 Anthropic: ..."
+        const raw: string = data.ticker ?? "";
+        const items = raw
+          .split(" • ")
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+
+        if (items.length > 0) setTickerItems(items);
+        if (typeof data.reportCount === "number") setReportCount(data.reportCount);
+      } catch {
+        // silently keep previous / fallback items
+      }
+    }
+
+    fetchTicker();
+    const id = setInterval(fetchTicker, REFRESH_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  const renderedItems = tickerItems.map((text, i) => (
     <a key={i} className={styles.tickerItem} href={LINK} target="_blank" rel="noopener noreferrer">
       <span className={styles.bullet}>▸</span>
-      <span>
-        <Highlighted text={h.text} highlight={h.highlight} />
-      </span>
+      <span>{text}</span>
     </a>
   ));
 
@@ -65,7 +80,10 @@ export default function NewsTicker() {
       <div className={styles.topBar}>
         <div className={styles.logo}>NOFA</div>
         <div className={styles.headline}>
-          AI News Flash — Your Source for the Latest in Artificial Intelligence
+          AI News Flash — Live AI provider status &amp; developer alerts
+          {reportCount !== null && (
+            <span className={styles.reportBadge}>{reportCount} reports</span>
+          )}
         </div>
         <a className={styles.ctaBtn} href={LINK} target="_blank" rel="noopener noreferrer">
           Visit Site →
@@ -80,10 +98,9 @@ export default function NewsTicker() {
           LIVE
         </div>
         <div className={styles.tickerTrack}>
-          {/* Items doubled so the seamless loop works */}
           <div className={styles.tickerScroll}>
-            {items}
-            {items}
+            {renderedItems}
+            {renderedItems}
           </div>
         </div>
       </div>

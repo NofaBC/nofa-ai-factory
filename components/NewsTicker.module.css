@@ -65,6 +65,21 @@
   text-align: right;
 }
 
+.reportBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  background: rgba(204, 0, 0, 0.25);
+  color: #ff8888;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
 /* ── Ticker ── */
 .tickerWrap {
   width: 100%;
