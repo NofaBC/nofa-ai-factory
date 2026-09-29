@@ -25,7 +25,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <head>
+      <body className="min-h-screen bg-[#06060a] text-zinc-100 flex flex-col antialiased">
         {/* Google Analytics 4 — G-LFZW435Q5K */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-LFZW435Q5K"
@@ -39,8 +39,6 @@ export default function RootLayout({
             gtag('config', 'G-LFZW435Q5K');
           `}
         </Script>
-      </head>
-      <body className="min-h-screen bg-[#06060a] text-zinc-100 flex flex-col antialiased">
         <Navbar />
         <NewsTicker />
         <main className="flex-1">{children}</main>
