@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import NewsTicker from "@/components/NewsTicker";
@@ -24,6 +25,21 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <head>
+        {/* Google Analytics 4 — G-LFZW435Q5K */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-LFZW435Q5K"
+          strategy="afterInteractive"
+        />
+        <Script id="ga4-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-LFZW435Q5K');
+          `}
+        </Script>
+      </head>
       <body className="min-h-screen bg-[#06060a] text-zinc-100 flex flex-col antialiased">
         <Navbar />
         <NewsTicker />
