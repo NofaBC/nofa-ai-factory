@@ -45,6 +45,9 @@ export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Pro
   const [order, setOrder] = useState(initial.order ?? 0);
   // NOFA Customize™
   const [isClientOwned, setIsClientOwned] = useState(initial.isClientOwned ?? false);
+  const [clientCustomizationAuthorized, setClientCustomizationAuthorized] = useState(
+    initial.clientCustomizationAuthorized ?? false
+  );
   const [hasStripeSubscription, setHasStripeSubscription] = useState(initial.hasStripeSubscription ?? false);
   // undefined = inherit global default | true = force on | false = force off
   const [customizeEnabled, setCustomizeEnabled] = useState<boolean | undefined>(initial.customizeEnabled);
@@ -82,6 +85,7 @@ export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Pro
         featured,
         order,
         isClientOwned,
+        clientCustomizationAuthorized,
         hasStripeSubscription,
         customizeEnabled,
       });
@@ -218,14 +222,25 @@ export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Pro
             onChange={setIsClientOwned}
           />
           <Toggle
+            label="Client Has Authorized Customization"
+            checked={clientCustomizationAuthorized}
+            onChange={setClientCustomizationAuthorized}
+          />
+          <Toggle
             label="Has Active Stripe Subscription"
             checked={hasStripeSubscription}
             onChange={setHasStripeSubscription}
           />
         </div>
-        {isClientOwned && customizeEnabled !== true && (
+        {isClientOwned && !clientCustomizationAuthorized && (
           <p className="text-xs text-amber-500">
-            Client-owned products are excluded from customization unless &ldquo;Force ON&rdquo; is selected above.
+            Client-owned product: customization is disabled. Enable &ldquo;Client Has Authorized Customization&rdquo;
+            to allow the CTA on this product.
+          </p>
+        )}
+        {isClientOwned && clientCustomizationAuthorized && customizeEnabled === false && (
+          <p className="text-xs text-zinc-500">
+            Client authorization granted, but the CTA is force-disabled by the Customization CTA setting above.
           </p>
         )}
       </section>

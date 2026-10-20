@@ -64,23 +64,36 @@ export async function saveCustomizeConfig(
  *
  * Rules (in priority order):
  * 1. masterEnabled = false → never eligible.
- * 2. isClientOwned = true → ineligible UNLESS customizeEnabled is explicitly true.
- *    (Separate explicit authorization required for client-owned products.)
- * 3. customizeEnabled = false (force-off) → ineligible.
- * 4. customizeEnabled = undefined (inherit) → apply newProductDefault.
- * 5. Otherwise eligible.
+ * 2. isClientOwned = true → requires BOTH:
+ *    a. clientCustomizationAuthorized = true  (contractual authorization from the client)
+ *    b. customizeEnabled ≠ false              (admin has not force-disabled this product)
+ *    These are independent checks. Neither alone is sufficient for client-owned products.
+ * 3. Non-client-owned:
+ *    a. customizeEnabled = false → ineligible.
+ *    b. customizeEnabled = undefined → apply newProductDefault.
+ *    c. customizeEnabled = true → eligible.
  */
 export function isCustomizeEligible(
-  product: { isClientOwned: boolean; customizeEnabled?: boolean },
+  product: {
+    isClientOwned: boolean;
+    clientCustomizationAuthorized: boolean;
+    customizeEnabled?: boolean;
+  },
   masterEnabled: boolean,
   newProductDefault = true
 ): boolean {
   if (!masterEnabled) return false;
-  // Client-owned: requires SEPARATE explicit authorization (customizeEnabled = true)
-  if (product.isClientOwned && product.customizeEnabled !== true) return false;
-  // Admin forced off for this product
+
+  if (product.isClientOwned) {
+    // Client-owned: requires SEPARATE, explicit client authorization
+    if (!product.clientCustomizationAuthorized) return false;
+    // Admin may still force-disable for this specific product
+    if (product.customizeEnabled === false) return false;
+    return true;
+  }
+
+  // NOFA-owned products:
   if (product.customizeEnabled === false) return false;
-  // No explicit override — apply the admin-configured new-product default
   if (product.customizeEnabled === undefined && !newProductDefault) return false;
   return true;
 }

@@ -35,11 +35,12 @@ export async function GET(req: NextRequest) {
           perProductEnabled = isCustomizeEligible(
             {
               isClientOwned: d.isClientOwned === true,
+              clientCustomizationAuthorized: d.clientCustomizationAuthorized === true,
               customizeEnabled:
                 typeof d.customizeEnabled === "boolean" ? d.customizeEnabled : undefined,
             },
             config.masterEnabled,
-            config.newProductDefault  // ← controls eligibility for products with no explicit override
+            config.newProductDefault
           );
         } else {
           // Unknown or unpublished product — not eligible

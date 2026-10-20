@@ -36,8 +36,15 @@ export interface Product {
   order: number;
 
   // NOFA Customize™ eligibility
-  /** true → client-owned; excluded from customization unless customizeEnabled is explicitly true */
+  /** true → product is owned by a client (not NOFA). Customization excluded by default. */
   isClientOwned: boolean;
+  /**
+   * Explicit written authorization from the client to offer customization on their product.
+   * Must be true in addition to customizeEnabled for client-owned products.
+   * Separate from customizeEnabled — covers the contractual/business authorization layer.
+   * Default: false.
+   */
+  clientCustomizationAuthorized: boolean;
   /** true → has an active Stripe subscription; subscription CTA stays primary */
   hasStripeSubscription: boolean;
   /** undefined = inherit global default | true = force on | false = force off */

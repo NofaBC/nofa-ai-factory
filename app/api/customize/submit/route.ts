@@ -171,13 +171,14 @@ export async function POST(req: NextRequest) {
     !isCustomizeEligible(
       {
         isClientOwned: productData.isClientOwned === true,
+        clientCustomizationAuthorized: productData.clientCustomizationAuthorized === true,
         customizeEnabled:
           typeof productData.customizeEnabled === "boolean"
             ? productData.customizeEnabled
             : undefined,
       },
       config.masterEnabled,
-      config.newProductDefault  // ← wired: newProductDefault now controls eligibility
+      config.newProductDefault
     )
   ) {
     return NextResponse.json(

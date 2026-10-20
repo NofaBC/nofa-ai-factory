@@ -55,8 +55,9 @@ function toProduct(id: string, data: Record<string, unknown>): Product {
     published: data.published === true,
     featured: data.featured === true,
     order: typeof data.order === "number" ? data.order : 0,
-    // NOFA Customize™ — default false / undefined for existing products
+    // NOFA Customize™ — defaults false / undefined for existing products
     isClientOwned: data.isClientOwned === true,
+    clientCustomizationAuthorized: data.clientCustomizationAuthorized === true,
     hasStripeSubscription: data.hasStripeSubscription === true,
     customizeEnabled: typeof data.customizeEnabled === "boolean" ? data.customizeEnabled : undefined,
     createdAt: ts(data.createdAt),
