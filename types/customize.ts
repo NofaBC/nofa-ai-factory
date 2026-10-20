@@ -58,7 +58,7 @@ export interface CustomizeLead {
 
 /** Default config applied when no Firestore document exists yet */
 export const DEFAULT_CUSTOMIZE_CONFIG: CustomizeConfig = {
-  masterEnabled: true,
+  masterEnabled: false, // OFF by default — enable in Admin after testing
   buttonText: "Customize This for My Business",
   introMessage:
     "NOFA AI Factory™ can customize this AI solution for your business, industry, workflows, and specific requirements.",
