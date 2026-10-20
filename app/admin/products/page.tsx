@@ -13,6 +13,7 @@ import {
 } from "@/lib/firestore";
 import { Product } from "@/types/product";
 import StatusBadge from "@/components/StatusBadge";
+import AdminNav from "@/components/AdminNav";
 
 export default function AdminProductsPage() {
   const router = useRouter();
@@ -61,13 +62,14 @@ export default function AdminProductsPage() {
 
   async function handleSignOut() {
     await signOut(auth);
-    // Clear the session cookie set at login
     document.cookie = "admin_auth=; max-age=0; path=/";
     router.push("/admin/login");
   }
 
   return (
-    <div className="px-4 py-12 sm:px-6 lg:px-8">
+    <div>
+      <AdminNav />
+      <div className="px-4 pb-12 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -78,12 +80,6 @@ export default function AdminProductsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={handleSignOut}
-              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-            >
-              Sign out
-            </button>
             <Link
               href="/admin/products/new"
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors"
@@ -188,6 +184,7 @@ export default function AdminProductsPage() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

@@ -3,13 +3,16 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Product } from "@/types/product";
+import { PublicCustomizeConfig } from "@/types/customize";
 import StatusBadge from "./StatusBadge";
+import CustomizeButton from "./CustomizeButton";
 
 interface Props {
   product: Product;
+  customizeConfig?: PublicCustomizeConfig | null;
 }
 
-export default function ProductCard({ product }: Props) {
+export default function ProductCard({ product, customizeConfig }: Props) {
   return (
     <div className="group relative flex flex-col rounded-2xl border border-white/[0.06] bg-[#111827] hover:bg-[#1c2333] hover:border-blue-500/30 transition-all duration-300 overflow-hidden">
       {/* Image or placeholder */}
@@ -86,6 +89,13 @@ export default function ProductCard({ product }: Props) {
               💬 Talk to Judy
             </a>
           )}
+          {/* NOFA Customize™ CTA — compact mode, shown only when eligible */}
+          <CustomizeButton
+            product={product}
+            prefetchedConfig={customizeConfig}
+            compact
+          />
+
           <div className="flex gap-2">
             <Link
               href={`/products/${product.slug}`}

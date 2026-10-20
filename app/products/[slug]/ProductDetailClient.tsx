@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Product } from "@/types/product";
 import { getProductBySlug } from "@/lib/firestore";
 import StatusBadge from "@/components/StatusBadge";
+import CustomizeButton from "@/components/CustomizeButton";
 
 interface Props {
   slug: string;
@@ -145,8 +146,8 @@ export default function ProductDetailClient({ slug }: Props) {
               ))}
           </div>
 
-          {/* Right: sticky action panel */}
-          <div className="lg:col-span-1">
+          {/* Right: sticky action panel + NOFA Customize™ */}
+          <div className="lg:col-span-1 flex flex-col gap-4">
             <div className="sticky top-24 rounded-2xl border border-white/[0.08] bg-[#111827] p-6 flex flex-col gap-3">
               <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-1">
                 Get Started
@@ -175,6 +176,9 @@ export default function ProductDetailClient({ slug }: Props) {
                 <StatusBadge status={product.status} size="sm" />
               </div>
             </div>
+
+            {/* NOFA Customize™ — full panel, fetches its own config */}
+            <CustomizeButton product={product} />
           </div>
         </div>
       </div>

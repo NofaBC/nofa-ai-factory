@@ -43,6 +43,11 @@ export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Pro
   const [published, setPublished] = useState(initial.published ?? false);
   const [featured, setFeatured] = useState(initial.featured ?? false);
   const [order, setOrder] = useState(initial.order ?? 0);
+  // NOFA Customize™
+  const [isClientOwned, setIsClientOwned] = useState(initial.isClientOwned ?? false);
+  const [hasStripeSubscription, setHasStripeSubscription] = useState(initial.hasStripeSubscription ?? false);
+  // undefined = inherit global default | true = force on | false = force off
+  const [customizeEnabled, setCustomizeEnabled] = useState<boolean | undefined>(initial.customizeEnabled);
 
   // Auto-generate slug from name
   function handleNameChange(v: string) {
@@ -76,6 +81,9 @@ export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Pro
         published,
         featured,
         order,
+        isClientOwned,
+        hasStripeSubscription,
+        customizeEnabled,
       });
       router.push("/admin/products");
     } catch (err) {
@@ -171,6 +179,55 @@ export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Pro
         <Field label="Sort Order" hint="Lower numbers appear first">
           <input type="number" value={order} onChange={(e) => setOrder(Number(e.target.value))} className={`${input} w-32`} />
         </Field>
+      </section>
+
+      {/* NOFA Customize™ */}
+      <section className="rounded-2xl border border-white/[0.06] bg-[#111827] p-6 flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">NOFA Customize™</h2>
+
+        {/* customizeEnabled: tri-state */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-zinc-400">Customization CTA</label>
+          <span className="text-xs text-zinc-600">Controls whether the &ldquo;Customize This for My Business&rdquo; button appears on this product.</span>
+          <div className="flex gap-2 mt-1">
+            {[
+              { label: "Inherit default", value: undefined },
+              { label: "Force ON", value: true },
+              { label: "Force OFF", value: false },
+            ].map(({ label, value }) => (
+              <button
+                key={String(value)}
+                type="button"
+                onClick={() => setCustomizeEnabled(value)}
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                  customizeEnabled === value
+                    ? "border-blue-500 bg-blue-600/20 text-white"
+                    : "border-white/[0.08] text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-6 pt-2">
+          <Toggle
+            label="Client-Owned Product"
+            checked={isClientOwned}
+            onChange={setIsClientOwned}
+          />
+          <Toggle
+            label="Has Active Stripe Subscription"
+            checked={hasStripeSubscription}
+            onChange={setHasStripeSubscription}
+          />
+        </div>
+        {isClientOwned && customizeEnabled !== true && (
+          <p className="text-xs text-amber-500">
+            Client-owned products are excluded from customization unless &ldquo;Force ON&rdquo; is selected above.
+          </p>
+        )}
       </section>
 
       {error && <p className="text-sm text-red-400">{error}</p>}

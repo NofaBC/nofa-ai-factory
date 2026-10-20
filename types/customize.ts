@@ -1,0 +1,77 @@
+// ── NOFA Customize™ type definitions ──────────────────────────────────────────
+
+export type LeadStatus =
+  | "New"
+  | "Contacted"
+  | "Consultation Scheduled"
+  | "Proposal Sent"
+  | "Won"
+  | "Lost";
+
+/** Stored in Firestore: customizeConfig/global */
+export interface CustomizeConfig {
+  masterEnabled: boolean;
+  buttonText: string;
+  introMessage: string;
+  /** Calendly booking URL — editable in admin, never hardcoded */
+  calendlyUrl: string;
+  /** Notification email — editable in admin */
+  notifyEmail: string;
+  /** Default customizeEnabled value for newly published products */
+  newProductDefault: boolean;
+  updatedAt?: string; // ISO timestamp (serialized from Firestore Timestamp)
+}
+
+/** Minimum configuration returned to public clients.
+ *  Never includes notifyEmail or calendlyUrl.
+ */
+export interface PublicCustomizeConfig {
+  /** Whether customization is globally and per-product enabled */
+  enabled: boolean;
+  buttonText: string;
+  introMessage: string;
+}
+
+/** Stored in Firestore: customizeLeads/{autoId} */
+export interface CustomizeLead {
+  id: string;
+  // Product attribution
+  productId: string;
+  productName: string;
+  productSlug: string;
+  productUrl: string;
+  // Visitor info
+  fullName: string;
+  businessEmail: string;
+  company: string;
+  industry: string;
+  requirements: string;
+  timeline: string;
+  // Metadata
+  status: LeadStatus;
+  emailSent: boolean;
+  submittedAt: string; // ISO timestamp
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+}
+
+/** Default config applied when no Firestore document exists yet */
+export const DEFAULT_CUSTOMIZE_CONFIG: CustomizeConfig = {
+  masterEnabled: true,
+  buttonText: "Customize This for My Business",
+  introMessage:
+    "NOFA AI Factory™ can customize this AI solution for your business, industry, workflows, and specific requirements.",
+  calendlyUrl: "",
+  notifyEmail: "supportdesk@nofabusinessconsulting.com",
+  newProductDefault: true,
+};
+
+export const LEAD_STATUSES: LeadStatus[] = [
+  "New",
+  "Contacted",
+  "Consultation Scheduled",
+  "Proposal Sent",
+  "Won",
+  "Lost",
+];

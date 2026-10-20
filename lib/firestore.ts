@@ -52,9 +52,13 @@ function toProduct(id: string, data: Record<string, unknown>): Product {
     judyUrl: (data.judyUrl as string) ?? "",
     learnMoreUrl: (data.learnMoreUrl as string) ?? "",
     imageUrl: (data.imageUrl as string) ?? "",
-    published: data.published === true,   // strict boolean, not truthy string
+    published: data.published === true,
     featured: data.featured === true,
     order: typeof data.order === "number" ? data.order : 0,
+    // NOFA Customize™ — default false / undefined for existing products
+    isClientOwned: data.isClientOwned === true,
+    hasStripeSubscription: data.hasStripeSubscription === true,
+    customizeEnabled: typeof data.customizeEnabled === "boolean" ? data.customizeEnabled : undefined,
     createdAt: ts(data.createdAt),
     updatedAt: ts(data.updatedAt),
   };

@@ -35,6 +35,14 @@ export interface Product {
   featured: boolean;
   order: number;
 
+  // NOFA Customize™ eligibility
+  /** true → client-owned; excluded from customization unless customizeEnabled is explicitly true */
+  isClientOwned: boolean;
+  /** true → has an active Stripe subscription; subscription CTA stays primary */
+  hasStripeSubscription: boolean;
+  /** undefined = inherit global default | true = force on | false = force off */
+  customizeEnabled?: boolean;
+
   // Timestamps (stored as Firestore Timestamp, serialized to ISO string for client)
   createdAt: string;
   updatedAt: string;
