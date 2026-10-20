@@ -2,39 +2,54 @@
  * Firebase Admin SDK — SERVER ONLY.
  * Import only from Next.js API routes (app/api/**) or server actions.
  * Never import from client components or pages marked "use client".
+ *
+ * firebase-admin v12 uses named exports per service sub-package.
  */
 
-import admin from "firebase-admin";
+import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
+import { getAuth, type Auth } from "firebase-admin/auth";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
-function initAdmin() {
-  if (admin.apps.length) return;
+let _app: App | null = null;
+let _auth: Auth | null = null;
+let _db: Firestore | null = null;
+
+function initAdmin(): void {
+  if (getApps().length > 0) {
+    // Already initialized — reuse existing instances
+    const app = getApps()[0];
+    _app = app;
+    _auth = getAuth(app);
+    _db = getFirestore(app);
+    return;
+  }
 
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) {
-    // In development without credentials, skip initialization gracefully.
-    // API routes that require admin will return 503.
-    console.warn("[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON not set.");
+    console.warn("[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON not set. Admin routes will return 503.");
     return;
   }
 
   try {
     const serviceAccount = JSON.parse(raw);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+    _app = initializeApp({
+      credential: cert(serviceAccount),
       projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
     });
+    _auth = getAuth(_app);
+    _db = getFirestore(_app);
   } catch (e) {
-    console.error("[firebase-admin] Failed to initialize:", e);
+    console.error("[firebase-admin] Initialization failed:", e);
   }
 }
 
 initAdmin();
 
 /** Firebase Admin Auth — use for verifyIdToken() on admin API routes */
-export const adminAuth = admin.apps.length ? admin.auth() : null;
+export const adminAuth: Auth | null = _auth;
 
 /** Firebase Admin Firestore — use for privileged reads/writes */
-export const adminDb = admin.apps.length ? admin.firestore() : null;
+export const adminDb: Firestore | null = _db;
 
 /**
  * Verify a Firebase ID token and confirm the decoded email matches
@@ -50,7 +65,7 @@ export async function verifyAdminToken(authHeader: string | null): Promise<void>
   }
 
   const idToken = authHeader.slice(7);
-  let decoded;
+  let decoded: Awaited<ReturnType<Auth["verifyIdToken"]>>;
   try {
     decoded = await adminAuth.verifyIdToken(idToken);
   } catch {

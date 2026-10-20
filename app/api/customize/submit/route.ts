@@ -4,8 +4,7 @@ import { Resend } from "resend";
 import {
   getCustomizeConfig,
   isCustomizeEligible,
-  isRateLimited,
-  recordRateLimitHit,
+  checkAndRecordRateLimit,
   isDuplicateSubmission,
   createLead,
 } from "@/lib/firestore-customize";
@@ -20,7 +19,11 @@ const ALLOWED_TIMELINES = [
 ];
 
 function hashIp(ip: string): string {
-  const secret = process.env.IP_HASH_SECRET ?? "nofa-default-secret";
+  const secret = process.env.IP_HASH_SECRET;
+  if (!secret) {
+    // Fail hard: an unconfigured secret would make all hashes predictable.
+    throw new Error("IP_HASH_SECRET environment variable is not set.");
+  }
   return createHmac("sha256", secret).update(ip).digest("hex").slice(0, 32);
 }
 
@@ -99,10 +102,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid timeline value." }, { status: 400 });
   }
 
-  // ── Rate limiting ────────────────────────────────────────────────────────
-  const ipHash = hashIp(getClientIp(req));
+  // ── Rate limiting (atomic) ──────────────────────────────────
+  let ipHash: string;
   try {
-    if (await isRateLimited(ipHash)) {
+    ipHash = hashIp(getClientIp(req));
+  } catch (err) {
+    // IP_HASH_SECRET not set — refuse all submissions to protect integrity
+    console.error("[customize/submit] IP_HASH_SECRET not configured:", err);
+    return NextResponse.json(
+      { error: "Service temporarily unavailable. Please try again later." },
+      { status: 503 }
+    );
+  }
+
+  try {
+    const blocked = await checkAndRecordRateLimit(ipHash);
+    if (blocked) {
       return NextResponse.json(
         { error: "Too many submissions. Please wait a few minutes and try again." },
         { status: 429 }
@@ -161,7 +176,8 @@ export async function POST(req: NextRequest) {
             ? productData.customizeEnabled
             : undefined,
       },
-      config.masterEnabled
+      config.masterEnabled,
+      config.newProductDefault  // ← wired: newProductDefault now controls eligibility
     )
   ) {
     return NextResponse.json(
@@ -177,9 +193,7 @@ export async function POST(req: NextRequest) {
   let emailSent = false;
 
   try {
-    // Record rate limit hit before saving (prevents race conditions)
-    await recordRateLimitHit(ipHash).catch(() => {});
-
+    // Rate limit was already recorded atomically in checkAndRecordRateLimit.
     leadId = await createLead(
       {
         productId,

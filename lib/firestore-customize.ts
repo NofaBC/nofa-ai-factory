@@ -4,6 +4,7 @@
  */
 
 import { adminDb } from "./firebase-admin";
+import type { Firestore, Transaction, Query, DocumentData } from "firebase-admin/firestore";
 import {
   CustomizeConfig,
   CustomizeLead,
@@ -16,8 +17,10 @@ const CONFIG_DOC = "customizeConfig/global";
 const LEADS_COL = "customizeLeads";
 const RATE_COL = "rateLimits";
 
-function assertDb(): asserts adminDb is NonNullable<typeof adminDb> {
+/** Returns the Firestore instance or throws if Admin SDK is not initialized. */
+function getDb(): Firestore {
   if (!adminDb) throw new Error("Firebase Admin not initialized.");
+  return adminDb;
 }
 
 function toTs(val: unknown): string {
@@ -29,8 +32,8 @@ function toTs(val: unknown): string {
 // ── Config ─────────────────────────────────────────────────────────────────
 
 export async function getCustomizeConfig(): Promise<CustomizeConfig> {
-  assertDb();
-  const snap = await adminDb.doc(CONFIG_DOC).get();
+  const db = getDb();
+  const snap = await db.doc(CONFIG_DOC).get();
   if (!snap.exists) return { ...DEFAULT_CUSTOMIZE_CONFIG };
   const d = snap.data()!;
   return {
@@ -47,8 +50,8 @@ export async function getCustomizeConfig(): Promise<CustomizeConfig> {
 export async function saveCustomizeConfig(
   data: Omit<CustomizeConfig, "updatedAt">
 ): Promise<void> {
-  assertDb();
-  await adminDb.doc(CONFIG_DOC).set(
+  const db = getDb();
+  await db.doc(CONFIG_DOC).set(
     { ...data, updatedAt: FieldValue.serverTimestamp() },
     { merge: true }
   );
@@ -57,54 +60,79 @@ export async function saveCustomizeConfig(
 // ── Eligibility ────────────────────────────────────────────────────────────
 
 /**
- * Server-side eligibility check — enforced on every form submission.
- * Client-owned products are excluded unless customizeEnabled is explicitly true.
+ * Server-side eligibility check — enforced on every form submission and config endpoint.
+ *
+ * Rules (in priority order):
+ * 1. masterEnabled = false → never eligible.
+ * 2. isClientOwned = true → ineligible UNLESS customizeEnabled is explicitly true.
+ *    (Separate explicit authorization required for client-owned products.)
+ * 3. customizeEnabled = false (force-off) → ineligible.
+ * 4. customizeEnabled = undefined (inherit) → apply newProductDefault.
+ * 5. Otherwise eligible.
  */
 export function isCustomizeEligible(
   product: { isClientOwned: boolean; customizeEnabled?: boolean },
-  masterEnabled: boolean
+  masterEnabled: boolean,
+  newProductDefault = true
 ): boolean {
   if (!masterEnabled) return false;
+  // Client-owned: requires SEPARATE explicit authorization (customizeEnabled = true)
   if (product.isClientOwned && product.customizeEnabled !== true) return false;
+  // Admin forced off for this product
   if (product.customizeEnabled === false) return false;
+  // No explicit override — apply the admin-configured new-product default
+  if (product.customizeEnabled === undefined && !newProductDefault) return false;
   return true;
 }
 
-// ── Rate limiting ──────────────────────────────────────────────────────────
+// ── Rate limiting (atomic Firestore transaction) ──────────────────────────
 
 const RATE_WINDOW_MS = 10 * 60 * 1000; // 10 min
 const RATE_MAX = 3;
 
-export async function isRateLimited(ipHash: string): Promise<boolean> {
-  assertDb();
-  const snap = await adminDb.doc(`${RATE_COL}/${ipHash}`).get();
-  if (!snap.exists) return false;
-  const d = snap.data()!;
-  const lastTs = d.lastSubmitAt as Timestamp | undefined;
-  if (!lastTs) return false;
-  const elapsed = Date.now() - lastTs.toMillis();
-  if (elapsed > RATE_WINDOW_MS) return false;
-  return (d.count ?? 0) >= RATE_MAX;
-}
+/**
+ * Atomically checks the rate limit and, if not exceeded, records the hit.
+ * Returns true if the request should be blocked (rate limit exceeded).
+ * The check-and-record is a single Firestore transaction to eliminate TOCTOU races.
+ */
+export async function checkAndRecordRateLimit(ipHash: string): Promise<boolean> {
+  const db = getDb();
+  const ref = db.doc(`${RATE_COL}/${ipHash}`);
+  let blocked = false;
 
-export async function recordRateLimitHit(ipHash: string): Promise<void> {
-  assertDb();
-  const ref = adminDb.doc(`${RATE_COL}/${ipHash}`);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    await ref.set({ lastSubmitAt: FieldValue.serverTimestamp(), count: 1 });
-    return;
-  }
-  const lastTs = snap.data()?.lastSubmitAt as Timestamp | undefined;
-  const elapsed = lastTs ? Date.now() - lastTs.toMillis() : Infinity;
-  if (elapsed > RATE_WINDOW_MS) {
-    await ref.set({ lastSubmitAt: FieldValue.serverTimestamp(), count: 1 });
-  } else {
-    await ref.update({
+  await db.runTransaction(async (txn: Transaction) => {
+    const snap = await txn.get(ref);
+
+    if (!snap.exists) {
+      // First submission from this IP — create record
+      txn.set(ref, { lastSubmitAt: FieldValue.serverTimestamp(), count: 1, windowStart: FieldValue.serverTimestamp() });
+      return;
+    }
+
+    const d = snap.data()!;
+    const lastTs = d.lastSubmitAt as Timestamp | undefined;
+    const elapsed = lastTs ? Date.now() - lastTs.toMillis() : Infinity;
+
+    if (elapsed > RATE_WINDOW_MS) {
+      // Window has expired — reset counter
+      txn.set(ref, { lastSubmitAt: FieldValue.serverTimestamp(), count: 1, windowStart: FieldValue.serverTimestamp() });
+      return;
+    }
+
+    const count = (d.count as number) ?? 0;
+    if (count >= RATE_MAX) {
+      blocked = true; // Do not increment — just signal blocked
+      return;
+    }
+
+    // Within window and under limit — increment (plain arithmetic inside txn)
+    txn.update(ref, {
       lastSubmitAt: FieldValue.serverTimestamp(),
-      count: FieldValue.increment(1),
+      count: count + 1,
     });
-  }
+  });
+
+  return blocked;
 }
 
 // ── Duplicate detection ────────────────────────────────────────────────────
@@ -115,9 +143,9 @@ export async function isDuplicateSubmission(
   businessEmail: string,
   productSlug: string
 ): Promise<boolean> {
-  assertDb();
+  const db = getDb();
   const cutoff = Timestamp.fromMillis(Date.now() - DUPE_WINDOW_MS);
-  const snap = await adminDb
+  const snap = await db
     .collection(LEADS_COL)
     .where("businessEmail", "==", businessEmail.toLowerCase().trim())
     .where("productSlug", "==", productSlug)
@@ -135,8 +163,8 @@ export async function createLead(
   data: LeadInput,
   emailSent: boolean
 ): Promise<string> {
-  assertDb();
-  const ref = await adminDb.collection(LEADS_COL).add({
+  const db = getDb();
+  const ref = await db.collection(LEADS_COL).add({
     ...data,
     businessEmail: data.businessEmail.toLowerCase().trim(),
     status: "New" as LeadStatus,
@@ -147,8 +175,8 @@ export async function createLead(
 }
 
 export async function getLeads(productSlug?: string): Promise<CustomizeLead[]> {
-  assertDb();
-  let q = adminDb.collection(LEADS_COL).orderBy("submittedAt", "desc") as FirebaseFirestore.Query;
+  const db = getDb();
+  let q: Query<DocumentData> = db.collection(LEADS_COL).orderBy("submittedAt", "desc");
   if (productSlug) q = q.where("productSlug", "==", productSlug);
 
   const snap = await q.limit(200).get();
@@ -177,6 +205,6 @@ export async function getLeads(productSlug?: string): Promise<CustomizeLead[]> {
 }
 
 export async function updateLeadStatus(id: string, status: LeadStatus): Promise<void> {
-  assertDb();
-  await adminDb.collection(LEADS_COL).doc(id).update({ status });
+  const db = getDb();
+  await db.collection(LEADS_COL).doc(id).update({ status });
 }

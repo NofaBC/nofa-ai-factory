@@ -38,7 +38,8 @@ export async function GET(req: NextRequest) {
               customizeEnabled:
                 typeof d.customizeEnabled === "boolean" ? d.customizeEnabled : undefined,
             },
-            config.masterEnabled
+            config.masterEnabled,
+            config.newProductDefault  // ← controls eligibility for products with no explicit override
           );
         } else {
           // Unknown or unpublished product — not eligible
