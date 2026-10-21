@@ -6,6 +6,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   orderBy,
@@ -130,7 +131,21 @@ export async function updateProduct(
   data: Partial<ProductInput>
 ): Promise<void> {
   const ref = doc(db, COLLECTION, id);
-  await updateDoc(ref, { ...data, updatedAt: serverTimestamp() });
+
+  // Targeted fix: Firestore's updateDoc() rejects `undefined` values.
+  // `customizeEnabled` is the only ProductInput field the form sets to undefined
+  // (when "Inherit Default" is selected). deleteField() removes the Firestore
+  // field so that toProduct() reads it back as undefined = inherit global default.
+  // URL fields (prototypeUrl etc.) are always empty strings from the form, not undefined.
+  const payload: Record<string, unknown> = {
+    ...(data as Record<string, unknown>),
+    updatedAt: serverTimestamp(),
+  };
+  if (payload.customizeEnabled === undefined) {
+    payload.customizeEnabled = deleteField();
+  }
+
+  await updateDoc(ref, payload);
 }
 
 /** Toggle published state */

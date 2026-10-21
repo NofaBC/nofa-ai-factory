@@ -217,6 +217,7 @@ export async function POST(req: NextRequest) {
     {
       isClientOwned: productData.isClientOwned === true,
       clientCustomizationAuthorized: productData.clientCustomizationAuthorized === true,
+      hasStripeSubscription: productData.hasStripeSubscription === true,
       customizeEnabled: typeof productData.customizeEnabled === "boolean"
         ? productData.customizeEnabled : undefined,
     },

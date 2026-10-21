@@ -78,6 +78,7 @@ export function isCustomizeEligible(
   product: {
     isClientOwned: boolean;
     clientCustomizationAuthorized: boolean;
+    hasStripeSubscription: boolean;
     customizeEnabled?: boolean;
   },
   masterEnabled: boolean,
@@ -85,12 +86,19 @@ export function isCustomizeEligible(
 ): boolean {
   if (!masterEnabled) return false;
 
+  // Client-owned: requires explicit client authorization
   if (product.isClientOwned) {
     if (!product.clientCustomizationAuthorized) return false;
     if (product.customizeEnabled === false) return false;
     return true;
   }
 
+  // Stripe subscription products: subscription CTA stays primary.
+  // Customization is optional — requires the admin to explicitly enable it.
+  // "Inherit Default" and "Force OFF" both suppress the CTA on these products.
+  if (product.hasStripeSubscription && product.customizeEnabled !== true) return false;
+
+  // NOFA-owned non-Stripe products:
   if (product.customizeEnabled === false) return false;
   if (product.customizeEnabled === undefined && !newProductDefault) return false;
   return true;

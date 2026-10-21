@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
             {
               isClientOwned: d.isClientOwned === true,
               clientCustomizationAuthorized: d.clientCustomizationAuthorized === true,
+              hasStripeSubscription: d.hasStripeSubscription === true,
               customizeEnabled:
                 typeof d.customizeEnabled === "boolean" ? d.customizeEnabled : undefined,
             },
