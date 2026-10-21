@@ -169,8 +169,16 @@ export type LeadInput = Omit<CustomizeLead, "id" | "submittedAt" | "status" | "e
 
 export async function createLead(data: LeadInput): Promise<string> {
   const db = getDb();
+
+  // The Firebase Admin SDK rejects undefined field values (unlike the client SDK).
+  // Strip only undefined — preserve false, 0, and empty strings, which are
+  // all legitimate stored values (e.g. requirements = "", businessWebsiteUrl = "").
+  const cleaned = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
+
   const ref = await db.collection(LEADS_COL).add({
-    ...data,
+    ...cleaned,
     businessEmail: data.businessEmail.toLowerCase().trim(),
     status: "New" as LeadStatus,
     emailDeliveryState: "pending" as EmailDeliveryState,
