@@ -8,6 +8,7 @@ import type { Firestore, Transaction, Query, DocumentData } from "firebase-admin
 import {
   CustomizeConfig,
   CustomizeLead,
+  EmailDeliveryState,
   LeadStatus,
   DEFAULT_CUSTOMIZE_CONFIG,
 } from "@/types/customize";
@@ -85,14 +86,11 @@ export function isCustomizeEligible(
   if (!masterEnabled) return false;
 
   if (product.isClientOwned) {
-    // Client-owned: requires SEPARATE, explicit client authorization
     if (!product.clientCustomizationAuthorized) return false;
-    // Admin may still force-disable for this specific product
     if (product.customizeEnabled === false) return false;
     return true;
   }
 
-  // NOFA-owned products:
   if (product.customizeEnabled === false) return false;
   if (product.customizeEnabled === undefined && !newProductDefault) return false;
   return true;
@@ -100,14 +98,9 @@ export function isCustomizeEligible(
 
 // ── Rate limiting (atomic Firestore transaction) ──────────────────────────
 
-const RATE_WINDOW_MS = 10 * 60 * 1000; // 10 min
+const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_MAX = 3;
 
-/**
- * Atomically checks the rate limit and, if not exceeded, records the hit.
- * Returns true if the request should be blocked (rate limit exceeded).
- * The check-and-record is a single Firestore transaction to eliminate TOCTOU races.
- */
 export async function checkAndRecordRateLimit(ipHash: string): Promise<boolean> {
   const db = getDb();
   const ref = db.doc(`${RATE_COL}/${ipHash}`);
@@ -117,7 +110,6 @@ export async function checkAndRecordRateLimit(ipHash: string): Promise<boolean> 
     const snap = await txn.get(ref);
 
     if (!snap.exists) {
-      // First submission from this IP — create record
       txn.set(ref, { lastSubmitAt: FieldValue.serverTimestamp(), count: 1, windowStart: FieldValue.serverTimestamp() });
       return;
     }
@@ -127,22 +119,17 @@ export async function checkAndRecordRateLimit(ipHash: string): Promise<boolean> 
     const elapsed = lastTs ? Date.now() - lastTs.toMillis() : Infinity;
 
     if (elapsed > RATE_WINDOW_MS) {
-      // Window has expired — reset counter
       txn.set(ref, { lastSubmitAt: FieldValue.serverTimestamp(), count: 1, windowStart: FieldValue.serverTimestamp() });
       return;
     }
 
     const count = (d.count as number) ?? 0;
     if (count >= RATE_MAX) {
-      blocked = true; // Do not increment — just signal blocked
+      blocked = true;
       return;
     }
 
-    // Within window and under limit — increment (plain arithmetic inside txn)
-    txn.update(ref, {
-      lastSubmitAt: FieldValue.serverTimestamp(),
-      count: count + 1,
-    });
+    txn.update(ref, { lastSubmitAt: FieldValue.serverTimestamp(), count: count + 1 });
   });
 
   return blocked;
@@ -150,7 +137,7 @@ export async function checkAndRecordRateLimit(ipHash: string): Promise<boolean> 
 
 // ── Duplicate detection ────────────────────────────────────────────────────
 
-const DUPE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
+const DUPE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function isDuplicateSubmission(
   businessEmail: string,
@@ -170,21 +157,75 @@ export async function isDuplicateSubmission(
 
 // ── Leads ──────────────────────────────────────────────────────────────────
 
-export type LeadInput = Omit<CustomizeLead, "id" | "submittedAt" | "status" | "emailSent">;
+export type LeadInput = Omit<CustomizeLead, "id" | "submittedAt" | "status" | "emailDeliveryState" | "emailAttemptedAt">;
 
-export async function createLead(
-  data: LeadInput,
-  emailSent: boolean
-): Promise<string> {
+export async function createLead(data: LeadInput): Promise<string> {
   const db = getDb();
   const ref = await db.collection(LEADS_COL).add({
     ...data,
     businessEmail: data.businessEmail.toLowerCase().trim(),
     status: "New" as LeadStatus,
-    emailSent,
+    emailDeliveryState: "pending" as EmailDeliveryState,
     submittedAt: FieldValue.serverTimestamp(),
   });
   return ref.id;
+}
+
+/**
+ * Atomically transitions a lead's email delivery state from "pending" or "failed"
+ * to "sending" before the SMTP call is made.
+ *
+ * Returns "proceed" if the SMTP call should be attempted.
+ * Returns "skip" if the email was already delivered or is in an uncertain "sending" state.
+ *
+ * This prevents duplicate sends and avoids auto-retry on uncertain delivery.
+ */
+export async function markEmailSending(leadId: string): Promise<"proceed" | "skip"> {
+  const db = getDb();
+  const ref = db.collection(LEADS_COL).doc(leadId);
+  let action: "proceed" | "skip" = "skip";
+
+  await db.runTransaction(async (txn: Transaction) => {
+    const snap = await txn.get(ref);
+    if (!snap.exists) throw new Error(`Lead ${leadId} not found.`);
+
+    const state = (snap.data()?.emailDeliveryState ?? "pending") as EmailDeliveryState;
+
+    if (state === "delivered") {
+      action = "skip"; // Already sent — do not re-send
+      return;
+    }
+
+    if (state === "sending") {
+      // Uncertain state: a previous attempt started but outcome is unknown.
+      // Do NOT auto-retry — surface to admin for manual review.
+      action = "skip";
+      return;
+    }
+
+    // "pending" or "failed" → safe to proceed
+    action = "proceed";
+    txn.update(ref, {
+      emailDeliveryState: "sending" as EmailDeliveryState,
+      emailAttemptedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  return action;
+}
+
+export async function markEmailDelivered(leadId: string): Promise<void> {
+  const db = getDb();
+  await db.collection(LEADS_COL).doc(leadId).update({
+    emailDeliveryState: "delivered" as EmailDeliveryState,
+  });
+}
+
+export async function markEmailFailed(leadId: string): Promise<void> {
+  const db = getDb();
+  await db.collection(LEADS_COL).doc(leadId).update({
+    emailDeliveryState: "failed" as EmailDeliveryState,
+  });
 }
 
 export async function getLeads(productSlug?: string): Promise<CustomizeLead[]> {
@@ -195,6 +236,11 @@ export async function getLeads(productSlug?: string): Promise<CustomizeLead[]> {
   const snap = await q.limit(200).get();
   return snap.docs.map((d) => {
     const r = d.data();
+    // Backward compat: old docs have emailSent boolean
+    const legacyEmailSent = r.emailSent === true;
+    const deliveryState: EmailDeliveryState =
+      r.emailDeliveryState ?? (legacyEmailSent ? "delivered" : "pending");
+
     return {
       id: d.id,
       productId: r.productId ?? "",
@@ -203,12 +249,12 @@ export async function getLeads(productSlug?: string): Promise<CustomizeLead[]> {
       productUrl: r.productUrl ?? "",
       fullName: r.fullName ?? "",
       businessEmail: r.businessEmail ?? "",
-      company: r.company ?? "",
-      industry: r.industry ?? "",
+      phone: r.phone ?? "",
+      businessWebsiteUrl: r.businessWebsiteUrl ?? "",
       requirements: r.requirements ?? "",
-      timeline: r.timeline ?? "",
       status: (r.status ?? "New") as LeadStatus,
-      emailSent: r.emailSent === true,
+      emailDeliveryState: deliveryState,
+      emailAttemptedAt: r.emailAttemptedAt ? toTs(r.emailAttemptedAt) : undefined,
       submittedAt: toTs(r.submittedAt),
       utmSource: r.utmSource,
       utmMedium: r.utmMedium,

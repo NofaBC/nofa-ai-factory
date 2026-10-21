@@ -8,6 +8,18 @@ export type LeadStatus =
   | "Won"
   | "Lost";
 
+/**
+ * Tracks the SMTP delivery lifecycle for each lead.
+ * Replaces the simple emailSent boolean to prevent uncertain-state auto-retry.
+ *
+ * State machine:
+ *   pending  → sending (atomic, before SMTP call)
+ *   sending  → delivered | failed (after SMTP outcome)
+ *
+ * "sending" with a stale emailAttemptedAt (>5 min) = uncertain; do NOT auto-retry.
+ */
+export type EmailDeliveryState = "pending" | "sending" | "delivered" | "failed";
+
 /** Stored in Firestore: customizeConfig/global */
 export interface CustomizeConfig {
   masterEnabled: boolean;
@@ -40,17 +52,18 @@ export interface CustomizeLead {
   productName: string;
   productSlug: string;
   productUrl: string;
-  // Visitor info
+  // Prospect info
   fullName: string;
   businessEmail: string;
-  company: string;
-  industry: string;
-  requirements: string;
-  timeline: string;
-  // Metadata
+  phone: string;
+  businessWebsiteUrl: string;
+  requirements: string; // optional in form — stored as empty string when omitted
+  // Status & delivery tracking
   status: LeadStatus;
-  emailSent: boolean;
+  emailDeliveryState: EmailDeliveryState;
+  emailAttemptedAt?: string; // ISO timestamp — set when state → "sending"
   submittedAt: string; // ISO timestamp
+  // Attribution
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;

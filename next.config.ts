@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
     "firebase-admin/storage",
     "jose",
     "jwks-rsa",
+    "nodemailer",
   ],
   images: {
     remotePatterns: [

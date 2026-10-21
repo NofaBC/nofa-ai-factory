@@ -12,6 +12,13 @@ async function getToken() {
   return getIdToken(user);
 }
 
+const DELIVERY_LABEL: Record<string, { icon: string; color: string }> = {
+  pending:   { icon: "⏳", color: "text-zinc-500" },
+  sending:   { icon: "⚠️", color: "text-amber-400" },
+  delivered: { icon: "✅", color: "text-green-400" },
+  failed:    { icon: "❌", color: "text-red-400" },
+};
+
 const STATUS_COLOR: Record<LeadStatus, string> = {
   New: "bg-blue-900/50 text-blue-300 border-blue-800",
   Contacted: "bg-amber-900/50 text-amber-300 border-amber-800",
@@ -138,10 +145,14 @@ export default function LeadsPage() {
                         {new Date(lead.submittedAt).toLocaleDateString("en-US", {
                           month: "short", day: "numeric", year: "numeric",
                         })}
-                        {lead.company ? ` · ${lead.company}` : ""}
-                        {!lead.emailSent && (
-                          <span className="ml-2 text-amber-500">⚠ Email not sent</span>
-                        )}
+                        {(() => {
+                          const dl = DELIVERY_LABEL[lead.emailDeliveryState] ?? DELIVERY_LABEL.pending;
+                          return (
+                            <span className={`ml-2 text-xs ${dl.color}`}>
+                              {dl.icon} {lead.emailDeliveryState === "sending" ? "Uncertain — verify" : lead.emailDeliveryState}
+                            </span>
+                          );
+                        })()}
                       </p>
                     </button>
 
@@ -171,8 +182,8 @@ export default function LeadsPage() {
                         >
                           {lead.productName}
                         </a>
-                        {lead.industry && <><span className="text-zinc-500">Industry</span><span className="text-zinc-300">{lead.industry}</span></>}
-                        {lead.timeline && <><span className="text-zinc-500">Timeline</span><span className="text-zinc-300">{lead.timeline}</span></>}
+                        {lead.phone && <><span className="text-zinc-500">Phone</span><span className="text-zinc-300">{lead.phone}</span></>}
+                        {lead.businessWebsiteUrl && <><span className="text-zinc-500">Website</span><a href={lead.businessWebsiteUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline text-xs">{lead.businessWebsiteUrl}</a></>}
                         {lead.utmSource && <><span className="text-zinc-500">Source</span><span className="text-zinc-300">{lead.utmSource}</span></>}
                       </div>
                       <div className="rounded-lg bg-white/5 p-3">

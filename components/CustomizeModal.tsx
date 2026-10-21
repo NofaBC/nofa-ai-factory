@@ -2,14 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 
-const TIMELINES = [
-  "As soon as possible",
-  "Within 1 month",
-  "1–3 months",
-  "3–6 months",
-  "Flexible / Exploring",
-];
-
 interface Props {
   product: { id: string; name: string; slug: string };
   introMessage: string;
@@ -37,7 +29,7 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
     });
   }, []); // eslint-disable-line
 
-  // Trap focus inside modal
+  // Escape key closes modal
   useEffect(() => {
     const el = document.getElementById("customize-modal-title");
     el?.focus();
@@ -56,11 +48,10 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
       productSlug: product.slug,
       fullName: fd.get("fullName"),
       businessEmail: fd.get("businessEmail"),
-      company: fd.get("company"),
-      industry: fd.get("industry"),
+      phone: fd.get("phone"),
+      businessWebsiteUrl: fd.get("businessWebsiteUrl"),
       requirements: fd.get("requirements"),
-      timeline: fd.get("timeline"),
-      _hp: fd.get("_hp"), // honeypot
+      _hp: fd.get("_hp"),
       utmSource: new URLSearchParams(window.location.search).get("utm_source") ?? undefined,
       utmMedium: new URLSearchParams(window.location.search).get("utm_medium") ?? undefined,
       utmCampaign: new URLSearchParams(window.location.search).get("utm_campaign") ?? undefined,
@@ -84,7 +75,6 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
         return;
       }
 
-      // GA4: lead generated
       gtag("event", "generate_lead", {
         product_id: product.id,
         product_name: product.name,
@@ -114,13 +104,8 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
       aria-labelledby="customize-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
     >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Panel */}
       <div className="relative w-full max-w-lg rounded-2xl border border-white/[0.08] bg-[#0d1117] shadow-2xl overflow-y-auto max-h-[90vh]">
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
@@ -149,7 +134,7 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
                 <p className="text-sm text-zinc-400 mb-5 leading-relaxed">{introMessage}</p>
               )}
               <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {/* Honeypot — hidden from real users, filled by bots */}
+                {/* Honeypot */}
                 <input
                   type="text"
                   name="_hp"
@@ -162,32 +147,40 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
                 <Field label="Full Name *">
                   <input name="fullName" required maxLength={200} className={inp} />
                 </Field>
-                <Field label="Business Email *">
+
+                <Field label="Email Address *">
                   <input name="businessEmail" type="email" required maxLength={254} className={inp} />
                 </Field>
-                <Field label="Company Name">
-                  <input name="company" maxLength={200} className={inp} />
-                </Field>
-                <Field label="Industry">
-                  <input name="industry" maxLength={200} className={inp} />
-                </Field>
-                <Field label="What would you like customized? *">
-                  <textarea
-                    name="requirements"
+
+                <Field label="Phone Number *">
+                  <input
+                    name="phone"
+                    type="tel"
                     required
-                    rows={4}
-                    maxLength={2000}
-                    placeholder="Describe your use case, workflows, or requirements…"
+                    maxLength={30}
+                    placeholder="+1 (555) 000-0000"
                     className={inp}
                   />
                 </Field>
-                <Field label="Expected Implementation Timeframe">
-                  <select name="timeline" className={inp}>
-                    <option value="">Select…</option>
-                    {TIMELINES.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
+
+                <Field label="Business Website" hint="Optional">
+                  <input
+                    name="businessWebsiteUrl"
+                    type="url"
+                    maxLength={500}
+                    placeholder="https://yourbusiness.com"
+                    className={inp}
+                  />
+                </Field>
+
+                <Field label="What would you like customized?" hint="Optional — describe your use case or requirements">
+                  <textarea
+                    name="requirements"
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="Describe your industry, workflows, or specific needs…"
+                    className={inp}
+                  />
                 </Field>
 
                 {error && <p className="text-sm text-red-400">{error}</p>}
@@ -197,8 +190,12 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
                   disabled={submitting}
                   className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white text-sm font-semibold transition-colors mt-1"
                 >
-                  {submitting ? "Submitting…" : "Submit Inquiry"}
+                  {submitting ? "Submitting…" : "Submit Request"}
                 </button>
+
+                <p className="text-xs text-zinc-600 text-center">
+                  Your information is used only to process your customization request.
+                </p>
               </form>
             </>
           )}
@@ -206,10 +203,10 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
           {step === "success" && (
             <div className="text-center py-6 flex flex-col gap-4">
               <div className="text-4xl">✅</div>
-              <h3 className="text-lg font-semibold text-white">Inquiry Received!</h3>
+              <h3 className="text-lg font-semibold text-white">Request Received!</h3>
               <p className="text-zinc-400 text-sm">
-                We&apos;ve saved your inquiry and a notification has been sent to our team.
-                We&apos;ll be in touch soon.
+                We&apos;ve received your customization request for <strong className="text-zinc-300">{product.name}</strong>.
+                Our team will be in touch soon.
               </p>
               {calendlyUrl && (
                 <button
@@ -233,7 +230,7 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
               <div className="text-4xl">💬</div>
               <h3 className="text-lg font-semibold text-white">Already Received!</h3>
               <p className="text-zinc-400 text-sm">
-                We already have your inquiry for this product. We&apos;ll be in touch soon.
+                We already have your request for this product. We&apos;ll be in touch soon.
               </p>
               <button
                 onClick={onClose}
@@ -252,10 +249,11 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
 const inp =
   "w-full rounded-lg border border-white/[0.08] bg-white/5 px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition";
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-medium text-zinc-400">{label}</label>
+      {hint && <span className="text-xs text-zinc-600">{hint}</span>}
       {children}
     </div>
   );
