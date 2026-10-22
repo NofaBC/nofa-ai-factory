@@ -9,6 +9,7 @@ import {
   CustomizeConfig,
   CustomizeLead,
   EmailDeliveryState,
+  SlackDeliveryState,
   LeadStatus,
   DEFAULT_CUSTOMIZE_CONFIG,
 } from "@/types/customize";
@@ -165,14 +166,14 @@ export async function isDuplicateSubmission(
 
 // ── Leads ──────────────────────────────────────────────────────────────────
 
+// slackDeliveryState is set by the caller (submit route) so it can check env vars
 export type LeadInput = Omit<CustomizeLead, "id" | "submittedAt" | "status" | "emailDeliveryState" | "emailAttemptedAt">;
 
 export async function createLead(data: LeadInput): Promise<string> {
   const db = getDb();
 
-  // The Firebase Admin SDK rejects undefined field values (unlike the client SDK).
-  // Strip only undefined — preserve false, 0, and empty strings, which are
-  // all legitimate stored values (e.g. requirements = "", businessWebsiteUrl = "").
+  // Firebase Admin SDK rejects undefined field values (unlike the client SDK).
+  // Strip only undefined — preserve false, 0, and empty strings.
   const cleaned = Object.fromEntries(
     Object.entries(data).filter(([, v]) => v !== undefined)
   );
@@ -185,6 +186,80 @@ export async function createLead(data: LeadInput): Promise<string> {
     submittedAt: FieldValue.serverTimestamp(),
   });
   return ref.id;
+}
+
+/** Fetch a single lead by Firestore document ID (admin use only). */
+export async function getLeadById(id: string): Promise<CustomizeLead | null> {
+  const db = getDb();
+  const snap = await db.collection(LEADS_COL).doc(id).get();
+  if (!snap.exists) return null;
+  const r = snap.data()!;
+  const legacyEmailSent = r.emailSent === true;
+  const deliveryState: EmailDeliveryState =
+    r.emailDeliveryState ?? (legacyEmailSent ? "delivered" : "pending");
+  return {
+    id: snap.id,
+    productId: r.productId ?? "",
+    productName: r.productName ?? "",
+    productSlug: r.productSlug ?? "",
+    productUrl: r.productUrl ?? "",
+    fullName: r.fullName ?? "",
+    businessEmail: r.businessEmail ?? "",
+    phone: r.phone ?? "",
+    businessWebsiteUrl: r.businessWebsiteUrl ?? "",
+    requirements: r.requirements ?? "",
+    status: (r.status ?? "New") as LeadStatus,
+    emailDeliveryState: deliveryState,
+    emailAttemptedAt: r.emailAttemptedAt ? toTs(r.emailAttemptedAt) : undefined,
+    slackDeliveryState: (r.slackDeliveryState ?? "not_configured") as SlackDeliveryState,
+    submittedAt: toTs(r.submittedAt),
+    utmSource: r.utmSource,
+    utmMedium: r.utmMedium,
+    utmCampaign: r.utmCampaign,
+  } satisfies CustomizeLead;
+}
+
+/**
+ * Atomically acquires the Slack retry lock.
+ * Transitions state from "failed" → "pending" (retry in progress).
+ * Returns "proceed" if the Slack call should be attempted.
+ * Returns "skip" if already sent, pending (concurrent), or not configured.
+ */
+export async function markSlackRetrying(leadId: string): Promise<"proceed" | "skip"> {
+  const db = getDb();
+  const ref = db.collection(LEADS_COL).doc(leadId);
+  let action: "proceed" | "skip" = "skip";
+
+  await db.runTransaction(async (txn: Transaction) => {
+    const snap = await txn.get(ref);
+    if (!snap.exists) throw new Error(`Lead ${leadId} not found.`);
+
+    const state = (snap.data()?.slackDeliveryState ?? "not_configured") as SlackDeliveryState;
+
+    if (state === "sent") { action = "skip"; return; }         // Already notified
+    if (state === "pending") { action = "skip"; return; }      // Concurrent retry in progress
+    if (state === "not_configured") { action = "skip"; return; } // Slack not set up
+
+    // "failed" → lock acquired for this retry
+    action = "proceed";
+    txn.update(ref, { slackDeliveryState: "pending" as SlackDeliveryState });
+  });
+
+  return action;
+}
+
+export async function markSlackSent(leadId: string): Promise<void> {
+  const db = getDb();
+  await db.collection(LEADS_COL).doc(leadId).update({
+    slackDeliveryState: "sent" as SlackDeliveryState,
+  });
+}
+
+export async function markSlackFailed(leadId: string): Promise<void> {
+  const db = getDb();
+  await db.collection(LEADS_COL).doc(leadId).update({
+    slackDeliveryState: "failed" as SlackDeliveryState,
+  });
 }
 
 /**
@@ -271,6 +346,7 @@ export async function getLeads(productSlug?: string): Promise<CustomizeLead[]> {
       status: (r.status ?? "New") as LeadStatus,
       emailDeliveryState: deliveryState,
       emailAttemptedAt: r.emailAttemptedAt ? toTs(r.emailAttemptedAt) : undefined,
+      slackDeliveryState: (r.slackDeliveryState ?? "not_configured") as SlackDeliveryState,
       submittedAt: toTs(r.submittedAt),
       utmSource: r.utmSource,
       utmMedium: r.utmMedium,

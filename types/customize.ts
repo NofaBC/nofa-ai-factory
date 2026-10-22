@@ -10,15 +10,23 @@ export type LeadStatus =
 
 /**
  * Tracks the SMTP delivery lifecycle for each lead.
- * Replaces the simple emailSent boolean to prevent uncertain-state auto-retry.
- *
  * State machine:
  *   pending  → sending (atomic, before SMTP call)
  *   sending  → delivered | failed (after SMTP outcome)
- *
  * "sending" with a stale emailAttemptedAt (>5 min) = uncertain; do NOT auto-retry.
  */
 export type EmailDeliveryState = "pending" | "sending" | "delivered" | "failed";
+
+/**
+ * Tracks the Slack alert lifecycle for each lead.
+ *
+ * not_configured — SLACK_BOT_TOKEN or channel ID missing in this environment.
+ * pending        — Alert in progress (initial attempt or retry lock held).
+ *                  Prevents concurrent retries via atomic Firestore transaction.
+ * sent           — Slack API confirmed acceptance.
+ * failed         — Slack API returned an error; manual retry available.
+ */
+export type SlackDeliveryState = "not_configured" | "pending" | "sent" | "failed";
 
 /** Stored in Firestore: customizeConfig/global */
 export interface CustomizeConfig {
@@ -62,6 +70,7 @@ export interface CustomizeLead {
   status: LeadStatus;
   emailDeliveryState: EmailDeliveryState;
   emailAttemptedAt?: string; // ISO timestamp — set when state → "sending"
+  slackDeliveryState: SlackDeliveryState;
   submittedAt: string; // ISO timestamp
   // Attribution
   utmSource?: string;

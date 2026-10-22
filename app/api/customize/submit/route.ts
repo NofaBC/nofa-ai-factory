@@ -10,8 +10,12 @@ import {
   markEmailSending,
   markEmailDelivered,
   markEmailFailed,
+  markSlackSent,
+  markSlackFailed,
 } from "@/lib/firestore-customize";
+import type { SlackDeliveryState } from "@/types/customize";
 import { adminDb } from "@/lib/firebase-admin";
+import { callSlackApi } from "@/lib/slack";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +45,33 @@ function isValidEmail(email: string): boolean {
 function isValidPhone(phone: string): boolean {
   // Accept digits, spaces, dashes, parens, plus — at least 7 chars after stripping
   return phone.replace(/[\s\-().+]/g, "").length >= 7;
+}
+
+// ── Slack helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Returns the Slack channel ID for the current environment.
+ * Production → SLACK_CHANNEL_ID (real channel)
+ * Preview    → SLACK_TEST_CHANNEL_ID (optional separate test channel, or skip)
+ * Other      → skip
+ * Never exposes the token in logs or responses.
+ */
+function getSlackConfig(): { token: string; channel: string } | null {
+  const token = process.env.SLACK_BOT_TOKEN;
+  if (!token) return null;
+
+  const env = process.env.VERCEL_ENV; // "production" | "preview" | undefined
+  if (env === "production") {
+    const channel = process.env.SLACK_CHANNEL_ID;
+    return channel ? { token, channel } : null;
+  }
+  if (env === "preview") {
+    const channel = process.env.SLACK_TEST_CHANNEL_ID;
+    return channel ? { token, channel } : null;
+  }
+  // Local dev: skip Slack unless both vars are set (useful for local testing)
+  const channel = process.env.SLACK_CHANNEL_ID ?? process.env.SLACK_TEST_CHANNEL_ID;
+  return channel ? { token, channel } : null;
 }
 
 // ── Gmail SMTP transport ──────────────────────────────────────────────────────
@@ -234,6 +265,9 @@ export async function POST(req: NextRequest) {
 
   // ── Save lead to Firestore FIRST ──────────────────────────────────────────
 
+  const slackCfg = getSlackConfig();
+  const initialSlackState: SlackDeliveryState = slackCfg ? "pending" : "not_configured";
+
   let leadId: string;
   try {
     leadId = await createLead({
@@ -246,6 +280,7 @@ export async function POST(req: NextRequest) {
       phone,
       businessWebsiteUrl,
       requirements,
+      slackDeliveryState: initialSlackState,
       utmSource: utmSource || undefined,
       utmMedium: utmMedium || undefined,
       utmCampaign: utmCampaign || undefined,
@@ -253,6 +288,22 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[customize/submit] Failed to save lead:", err);
     return NextResponse.json({ error: "Failed to save inquiry. Please try again." }, { status: 500 });
+  }
+
+  // ── Slack notification (fire-and-forget, never blocks ticket creation) ────
+
+  if (slackCfg) {
+    (async () => {
+      const sent = await callSlackApi(slackCfg.token, slackCfg.channel, {
+        leadId, productName, productUrl, fullName, businessEmail, phone,
+      });
+      if (sent) {
+        await markSlackSent(leadId).catch(() => {});
+      } else {
+        console.error("[customize/submit] Slack alert failed for lead", leadId);
+        await markSlackFailed(leadId).catch(() => {});
+      }
+    })().catch(() => {});
   }
 
   // ── Atomic delivery-state gate + SMTP ────────────────────────────────────

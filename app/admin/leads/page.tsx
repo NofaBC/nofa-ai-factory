@@ -13,10 +13,17 @@ async function getToken() {
 }
 
 const DELIVERY_LABEL: Record<string, { icon: string; color: string }> = {
-  pending:   { icon: "⏳", color: "text-zinc-500" },
-  sending:   { icon: "⚠️", color: "text-amber-400" },
-  delivered: { icon: "✅", color: "text-green-400" },
-  failed:    { icon: "❌", color: "text-red-400" },
+  pending:       { icon: "⏳", color: "text-zinc-500" },
+  sending:       { icon: "⚠️", color: "text-amber-400" },
+  delivered:     { icon: "✅", color: "text-green-400" },
+  failed:        { icon: "❌", color: "text-red-400" },
+};
+
+const SLACK_LABEL: Record<string, { icon: string; color: string; tip: string }> = {
+  not_configured: { icon: "—",  color: "text-zinc-600",  tip: "Slack not configured" },
+  pending:        { icon: "⏳",  color: "text-zinc-500",  tip: "Alert in progress" },
+  sent:           { icon: "🔔", color: "text-green-400", tip: "Slack notified" },
+  failed:         { icon: "🔕", color: "text-red-400",   tip: "Slack alert failed — retry available" },
 };
 
 const STATUS_COLOR: Record<LeadStatus, string> = {
@@ -147,10 +154,16 @@ export default function LeadsPage() {
                         })}
                         {(() => {
                           const dl = DELIVERY_LABEL[lead.emailDeliveryState] ?? DELIVERY_LABEL.pending;
+                          const sl = SLACK_LABEL[lead.slackDeliveryState] ?? SLACK_LABEL.not_configured;
                           return (
-                            <span className={`ml-2 text-xs ${dl.color}`}>
-                              {dl.icon} {lead.emailDeliveryState === "sending" ? "Uncertain — verify" : lead.emailDeliveryState}
-                            </span>
+                            <>
+                              <span className={`ml-2 text-xs ${dl.color}`} title={`Email: ${lead.emailDeliveryState}`}>
+                                {dl.icon} {lead.emailDeliveryState === "sending" ? "Uncertain" : lead.emailDeliveryState}
+                              </span>
+                              <span className={`ml-2 text-xs ${sl.color}`} title={sl.tip}>
+                                {sl.icon} Slack
+                              </span>
+                            </>
                           );
                         })()}
                       </p>

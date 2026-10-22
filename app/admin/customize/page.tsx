@@ -19,6 +19,8 @@ export default function CustomizeSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [slackTesting, setSlackTesting] = useState(false);
+  const [slackMsg, setSlackMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -163,6 +165,49 @@ export default function CustomizeSettingsPage() {
               </button>
             </div>
           </form>
+
+          {/* Slack integration test — outside the settings form */}
+          <div className="mt-8 rounded-2xl border border-white/[0.06] bg-[#111827] p-6 flex flex-col gap-4">
+            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">🔔 Slack Notification Test</h2>
+            <p className="text-xs text-zinc-500">
+              Sends a clearly-marked [TEST] message to the configured Slack channel.
+              No Firestore record is created. Use this to verify bot access and channel membership
+              without enabling the public customization CTA.
+            </p>
+            {slackMsg && (
+              <p className={`text-sm ${slackMsg.ok ? "text-green-400" : "text-red-400"}`}>{slackMsg.text}</p>
+            )}
+            <div>
+              <button
+                type="button"
+                disabled={slackTesting}
+                onClick={async () => {
+                  setSlackTesting(true);
+                  setSlackMsg(null);
+                  try {
+                    const token = await getToken();
+                    const res = await fetch("/api/admin/customize/test-slack", {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                      setSlackMsg({ ok: true, text: "Test alert sent to Slack. ✅" });
+                    } else {
+                      setSlackMsg({ ok: false, text: data.error ?? "Slack call failed." });
+                    }
+                  } catch (err) {
+                    setSlackMsg({ ok: false, text: String(err) });
+                  } finally {
+                    setSlackTesting(false);
+                  }
+                }}
+                className="px-5 py-2 rounded-lg border border-white/[0.08] text-zinc-300 hover:text-white hover:border-white/20 text-sm transition-colors disabled:opacity-50"
+              >
+                {slackTesting ? "Sending…" : "Send Test Alert"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
