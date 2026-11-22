@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import posthog from "posthog-js";
 import { Product } from "@/types/product";
 import { PublicCustomizeConfig } from "@/types/customize";
 import StatusBadge from "./StatusBadge";
@@ -13,6 +14,16 @@ interface Props {
 }
 
 export default function ProductCard({ product, customizeConfig }: Props) {
+  function captureExternalLink(destination: "live_saas" | "prototype" | "assistant") {
+    posthog.capture("product_external_link_opened", {
+      product_id: product.id,
+      product_slug: product.slug,
+      product_status: product.status,
+      destination,
+      placement: "product_card",
+    });
+  }
+
   return (
     <div className="group relative flex flex-col rounded-2xl border border-white/[0.06] bg-[#111827] hover:bg-[#1c2333] hover:border-blue-500/30 transition-all duration-300 overflow-hidden">
       {/* Image or placeholder */}
@@ -64,6 +75,7 @@ export default function ProductCard({ product, customizeConfig }: Props) {
               href={product.liveSaasUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => captureExternalLink("live_saas")}
               className="flex items-center justify-center gap-2 h-9 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
             >
               ✅ Visit Live SaaS
@@ -74,6 +86,7 @@ export default function ProductCard({ product, customizeConfig }: Props) {
               href={product.prototypeUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => captureExternalLink("prototype")}
               className="flex items-center justify-center gap-2 h-9 rounded-lg bg-violet-700 hover:bg-violet-600 text-white text-sm font-medium transition-colors"
             >
               🚀 View Prototype
@@ -84,6 +97,7 @@ export default function ProductCard({ product, customizeConfig }: Props) {
               href={product.judyUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => captureExternalLink("assistant")}
               className="flex items-center justify-center gap-2 h-9 rounded-lg bg-teal-700 hover:bg-teal-600 text-white text-sm font-medium transition-colors"
             >
               💬 Talk to Judy

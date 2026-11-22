@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getIdToken } from "firebase/auth";
+import posthog from "posthog-js";
 import { auth } from "@/lib/firebase";
 import { CustomizeLead, LeadStatus, LEAD_STATUSES } from "@/types/customize";
 import AdminNav from "@/components/AdminNav";
@@ -62,15 +63,21 @@ export default function LeadsPage() {
   useEffect(() => { fetchLeads(); }, [filterProduct]); // eslint-disable-line
 
   async function handleStatusChange(id: string, status: LeadStatus) {
+    const previousStatus = leads.find((lead) => lead.id === id)?.status;
     setUpdatingId(id);
     try {
       const token = await getToken();
-      await fetch("/api/admin/customize/leads", {
+      const res = await fetch("/api/admin/customize/leads", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id, status }),
       });
+      if (!res.ok) return;
       setLeads((prev) => prev.map((l) => l.id === id ? { ...l, status } : l));
+      posthog.capture("customization_lead_status_updated", {
+        previous_status: previousStatus,
+        status,
+      });
     } catch { /* silent */ }
     finally { setUpdatingId(null); }
   }

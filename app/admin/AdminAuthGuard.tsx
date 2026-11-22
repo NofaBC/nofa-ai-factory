@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
+import posthog from "posthog-js";
 import { auth } from "@/lib/firebase";
 
 export default function AdminLayout({
@@ -24,6 +25,10 @@ export default function AdminLayout({
       if (!user) {
         // Firebase says no authenticated user — redirect to login
         router.replace("/admin/login");
+      } else {
+        posthog.identify(user.uid, {
+          email: user.email ?? undefined,
+        });
       }
       setReady(true);
     });

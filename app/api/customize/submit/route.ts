@@ -16,6 +16,11 @@ import {
 import type { SlackDeliveryState } from "@/types/customize";
 import { adminDb } from "@/lib/firebase-admin";
 import { callSlackApi } from "@/lib/slack";
+import { SeverityNumber } from "@opentelemetry/api-logs";
+import {
+  flushCustomizationWorkflowLogs,
+  logCustomizationWorkflow,
+} from "@/lib/posthog-logs";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -290,6 +295,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to save inquiry. Please try again." }, { status: 500 });
   }
 
+  logCustomizationWorkflow(
+    "customization_inquiry_recorded",
+    SeverityNumber.INFO,
+    {
+      product_slug: productSlug,
+      slack_notification_configured: Boolean(slackCfg),
+    },
+  );
+
   // ── Slack notification (fire-and-forget, never blocks ticket creation) ────
 
   if (slackCfg) {
@@ -300,6 +314,12 @@ export async function POST(req: NextRequest) {
       if (sent) {
         await markSlackSent(leadId).catch(() => {});
       } else {
+        logCustomizationWorkflow(
+          "customization_slack_notification_failed",
+          SeverityNumber.WARN,
+          { product_slug: productSlug },
+        );
+        await flushCustomizationWorkflowLogs();
         console.error("[customize/submit] Slack alert failed for lead", leadId);
         await markSlackFailed(leadId).catch(() => {});
       }
@@ -341,6 +361,11 @@ export async function POST(req: NextRequest) {
 
         if (!smtpError) {
           await markEmailDelivered(leadId).catch(() => {});
+          logCustomizationWorkflow(
+            "customization_email_delivered",
+            SeverityNumber.INFO,
+            { product_slug: productSlug },
+          );
         } else {
           console.error("[customize/submit] SMTP failed:", smtpError);
           await markEmailFailed(leadId).catch(() => {});
@@ -356,6 +381,8 @@ export async function POST(req: NextRequest) {
     console.error("[customize/submit] Delivery-state error:", err);
     // Lead is saved; email state may be inconsistent — admin can review
   }
+
+  await flushCustomizationWorkflowLogs();
 
   return NextResponse.json({
     success: true,

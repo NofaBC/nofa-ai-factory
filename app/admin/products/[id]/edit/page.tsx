@@ -42,6 +42,7 @@ export default function EditProductPage() {
         <ProductForm
           initial={product}
           submitLabel="Save Changes"
+          submissionEvent="product_updated"
           onSubmit={(data: ProductInput) => updateProduct(id, data)}
         />
       </div>

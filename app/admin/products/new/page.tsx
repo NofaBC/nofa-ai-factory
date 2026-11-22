@@ -10,6 +10,7 @@ export default function NewProductPage() {
         <h1 className="text-2xl font-bold text-white mb-8">Add New Product</h1>
         <ProductForm
           submitLabel="Create Product"
+          submissionEvent="product_created"
           onSubmit={(data: ProductInput) => createProduct(data).then(() => {})}
         />
       </div>

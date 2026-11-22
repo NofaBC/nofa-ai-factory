@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import posthog from "posthog-js";
 
 interface Props {
   product: { id: string; name: string; slug: string };
@@ -71,10 +72,18 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
       }
 
       if (data.duplicate) {
+        posthog.capture("customization_request_duplicate", {
+          product_id: product.id,
+          product_slug: product.slug,
+        });
         setStep("dupe");
         return;
       }
 
+      posthog.capture("customization_request_submitted", {
+        product_id: product.id,
+        product_slug: product.slug,
+      });
       gtag("event", "generate_lead", {
         product_id: product.id,
         product_name: product.name,
@@ -90,6 +99,10 @@ export default function CustomizeModal({ product, introMessage, onClose }: Props
   }
 
   function handleCalendlyClick() {
+    posthog.capture("consultation_booking_opened", {
+      product_id: product.id,
+      product_slug: product.slug,
+    });
     gtag("event", "calendly_click", {
       product_id: product.id,
       product_name: product.name,
