@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, lazy, Suspense } from "react";
+import posthog from "posthog-js";
 import { PublicCustomizeConfig } from "@/types/customize";
 import { Product } from "@/types/product";
 
@@ -44,6 +45,11 @@ export default function CustomizeButton({ product, prefetchedConfig, compact = f
 
   function handleOpen() {
     fireGA4Click(product.id, product.name);
+    posthog.capture("customization_cta_opened", {
+      product_id: product.id,
+      product_slug: product.slug,
+      placement: compact ? "product_card" : "product_detail",
+    });
     setOpen(true);
   }
 

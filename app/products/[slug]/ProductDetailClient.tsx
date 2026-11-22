@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import posthog from "posthog-js";
 import { Product } from "@/types/product";
 import { getProductBySlug } from "@/lib/firestore";
 import StatusBadge from "@/components/StatusBadge";
@@ -48,30 +49,35 @@ export default function ProductDetailClient({ slug }: Props) {
     product.liveSaasUrl && {
       href: product.liveSaasUrl,
       label: "Visit Live SaaS",
+      destination: "live_saas",
       icon: "✅",
       className: "bg-blue-600 hover:bg-blue-500 text-white",
     },
     product.prototypeUrl && {
       href: product.prototypeUrl,
       label: "View Prototype",
+      destination: "prototype",
       icon: "🚀",
       className: "bg-violet-700 hover:bg-violet-600 text-white",
     },
     product.judyUrl && {
       href: product.judyUrl,
       label: "Talk to Judy",
+      destination: "assistant",
       icon: "💬",
       className: "bg-teal-700 hover:bg-teal-600 text-white",
     },
     product.learnMoreUrl && {
       href: product.learnMoreUrl,
       label: "Learn More",
+      destination: "learn_more",
       icon: "📖",
       className: "border border-white/10 hover:bg-white/5 text-white",
     },
   ].filter(Boolean) as {
     href: string;
     label: string;
+    destination: "live_saas" | "prototype" | "assistant" | "learn_more";
     icon: string;
     className: string;
   }[];
@@ -160,6 +166,15 @@ export default function ProductDetailClient({ slug }: Props) {
                     href={action.href}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() =>
+                      posthog.capture("product_external_link_opened", {
+                        product_id: product.id,
+                        product_slug: product.slug,
+                        product_status: product.status,
+                        destination: action.destination,
+                        placement: "product_detail",
+                      })
+                    }
                     className={`flex items-center justify-center gap-2 h-11 rounded-xl font-medium text-sm transition-colors ${action.className}`}
                   >
                     <span>{action.icon}</span>

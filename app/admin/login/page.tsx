@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import posthog from "posthog-js";
 import { auth } from "@/lib/firebase";
 
 export default function AdminLoginPage() {
@@ -25,7 +26,11 @@ export default function AdminLoginPage() {
 
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      posthog.identify(credential.user.uid, {
+        email: credential.user.email ?? email,
+      });
+      posthog.capture("admin_login_succeeded");
       // Set a cookie the proxy can detect (Firebase does NOT auto-set __session on Vercel)
       document.cookie = "admin_auth=1; path=/; SameSite=Strict; Secure; max-age=86400";
       router.push("/admin/products");

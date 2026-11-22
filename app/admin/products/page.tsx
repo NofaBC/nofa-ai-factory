@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
+import posthog from "posthog-js";
 import { auth } from "@/lib/firebase";
 import {
   getAllProducts,
@@ -41,6 +42,10 @@ export default function AdminProductsPage() {
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, published: !current } : p))
     );
+    posthog.capture("product_publication_toggled", {
+      product_id: id,
+      published: !current,
+    });
     setBusy(null);
   }
 
@@ -49,12 +54,17 @@ export default function AdminProductsPage() {
     setBusy(id);
     await deleteProduct(id);
     setProducts((prev) => prev.filter((p) => p.id !== id));
+    posthog.capture("product_deleted", { product_id: id });
     setBusy(null);
   }
 
   async function handleDuplicate(id: string) {
     setBusy(id);
     const newId = await duplicateProduct(id);
+    posthog.capture("product_duplicated", {
+      source_product_id: id,
+      new_product_id: newId,
+    });
     await load();
     setBusy(null);
     router.push(`/admin/products/${newId}/edit`);
@@ -62,6 +72,7 @@ export default function AdminProductsPage() {
 
   async function handleSignOut() {
     await signOut(auth);
+    posthog.reset();
     document.cookie = "admin_auth=; max-age=0; path=/";
     router.push("/admin/login");
   }

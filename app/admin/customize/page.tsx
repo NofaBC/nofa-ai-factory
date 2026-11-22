@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getIdToken } from "firebase/auth";
+import posthog from "posthog-js";
 import { auth } from "@/lib/firebase";
 import { CustomizeConfig, DEFAULT_CUSTOMIZE_CONFIG } from "@/types/customize";
 import AdminNav from "@/components/AdminNav";
@@ -47,8 +48,14 @@ export default function CustomizeSettingsPage() {
         body: JSON.stringify(config),
       });
       const data = await res.json();
-      if (res.ok) setMsg({ ok: true, text: "Settings saved." });
-      else setMsg({ ok: false, text: data.error ?? "Save failed." });
+      if (res.ok) {
+        posthog.capture("customization_settings_saved", {
+          master_enabled: config.masterEnabled,
+          new_product_default: config.newProductDefault,
+          calendly_enabled: Boolean(config.calendlyUrl),
+        });
+        setMsg({ ok: true, text: "Settings saved." });
+      } else setMsg({ ok: false, text: data.error ?? "Save failed." });
     } catch (err) {
       setMsg({ ok: false, text: String(err) });
     } finally {
@@ -192,6 +199,7 @@ export default function CustomizeSettingsPage() {
                     });
                     const data = await res.json();
                     if (res.ok && data.success) {
+                      posthog.capture("customization_slack_test_sent");
                       setSlackMsg({ ok: true, text: "Test alert sent to Slack. ✅" });
                     } else {
                       setSlackMsg({ ok: false, text: data.error ?? "Slack call failed." });

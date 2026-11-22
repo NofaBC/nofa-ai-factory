@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
+import posthog from "posthog-js";
 import { auth } from "@/lib/firebase";
 
 const NAV_LINKS = [
@@ -17,6 +18,7 @@ export default function AdminNav() {
 
   async function handleSignOut() {
     await signOut(auth);
+    posthog.reset();
     document.cookie = "admin_auth=; max-age=0; path=/";
     router.push("/admin/login");
   }

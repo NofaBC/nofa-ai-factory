@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { ProductInput } from "@/lib/firestore";
 import { ALL_STATUSES, STATUS_META, ProductStatus } from "@/types/product";
 import ImageUpload from "./ImageUpload";
@@ -10,6 +11,7 @@ interface Props {
   initial?: Partial<ProductInput>;
   onSubmit: (data: ProductInput) => Promise<void>;
   submitLabel: string;
+  submissionEvent: "product_created" | "product_updated";
 }
 
 function tagsFromString(s: string): string[] {
@@ -19,7 +21,7 @@ function tagsFromString(s: string): string[] {
     .filter(Boolean);
 }
 
-export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Props) {
+export default function ProductForm({ initial = {}, onSubmit, submitLabel, submissionEvent }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
@@ -88,6 +90,12 @@ export default function ProductForm({ initial = {}, onSubmit, submitLabel }: Pro
         clientCustomizationAuthorized,
         hasStripeSubscription,
         customizeEnabled,
+      });
+      posthog.capture(submissionEvent, {
+        product_status: status,
+        published,
+        featured,
+        customize_enabled: customizeEnabled ?? "inherited",
       });
       router.push("/admin/products");
     } catch (err) {
